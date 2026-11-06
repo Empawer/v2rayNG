@@ -563,4 +563,11 @@
     <string name="sub_info_open_page">Mở trang thông tin đăng ký</string>
     <string name="sub_info_unlimited">Không giới hạn</string>
 
+    <string name="title_chain_proxy_settings">Proxy chuỗi</string>
+    <string name="title_pref_chain_proxy_enabled">Proxy chuỗi</string>
+    <string name="summary_pref_chain_proxy_enabled">Chạy cấu hình relay đã chọn trên một lõi riêng cùng lúc với các cấu hình hồ sơ. Kết nối bằng SOCKS hoặc HTTP qua inbound riêng của nó.</string>
+    <string name="title_pref_chain_proxy_config">Cấu hình relay (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">Nhấn để duyệt và chọn tệp JSON</string>
+    <string name="toast_chain_proxy_config_invalid">Cấu hình relay phải là tệp JSON có ít nhất một inbound và một outbound</string>
+    <string name="toast_chain_proxy_start_failed">Không thể khởi động proxy chuỗi: %1$s</string>
 </resources>

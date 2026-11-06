@@ -566,4 +566,11 @@
     <string name="sub_info_traffic" translatable="false">%1$s / %2$s</string>
     <string name="sub_info_unlimited">Unlimited</string>
 
+    <string name="title_chain_proxy_settings">Chain Proxy</string>
+    <string name="title_pref_chain_proxy_enabled">Chain proxy</string>
+    <string name="summary_pref_chain_proxy_enabled">Run the selected relay config on a separate core alongside your profile configs. Connect to it with SOCKS or HTTP through its own inbound.</string>
+    <string name="title_pref_chain_proxy_config">Relay config (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">Tap to browse and select a JSON file</string>
+    <string name="toast_chain_proxy_config_invalid">The relay config must be a JSON file with at least one inbound and one outbound</string>
+    <string name="toast_chain_proxy_start_failed">Chain proxy failed to start: %1$s</string>
 </resources>

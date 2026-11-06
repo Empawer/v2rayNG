@@ -565,4 +565,11 @@
     <string name="sub_info_open_page">واز کردن صفحه اطلاعات اشتراک</string>
     <string name="sub_info_unlimited">بی‌حد</string>
 
+    <string name="title_chain_proxy_settings">پروکسی زنجیره‌ای</string>
+    <string name="title_pref_chain_proxy_enabled">پروکسی زنجیره‌ای</string>
+    <string name="summary_pref_chain_proxy_enabled">کانفیگ رله انتخاب‌شده با یک هسته جداگانه و همزمان با کانفیگ‌های پروفایل اجرا می‌شود. با SOCKS یا HTTP از طریق inbound خودش به آن وصل شوید.</string>
+    <string name="title_pref_chain_proxy_config">کانفیگ رله (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">برای انتخاب فایل JSON ضربه بزنید</string>
+    <string name="toast_chain_proxy_config_invalid">کانفیگ رله باید فایل JSON با حداقل یک inbound و یک outbound باشد</string>
+    <string name="toast_chain_proxy_start_failed">راه‌اندازی پروکسی زنجیره‌ای ناموفق بود: %1$s</string>
 </resources>

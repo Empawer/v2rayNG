@@ -565,4 +565,11 @@
     <string name="sub_info_open_page">সাবস্ক্রিপশন তথ্যের পাতা খুলুন</string>
     <string name="sub_info_unlimited">সীমাহীন</string>
 
+    <string name="title_chain_proxy_settings">চেইন প্রক্সি</string>
+    <string name="title_pref_chain_proxy_enabled">চেইন প্রক্সি</string>
+    <string name="summary_pref_chain_proxy_enabled">নির্বাচিত রিলে কনফিগ আপনার প্রোফাইল কনফিগের সাথে একই সময়ে আলাদা কোরে চালান। এর নিজস্ব ইনবাউন্ডের মাধ্যমে SOCKS বা HTTP দিয়ে সংযুক্ত হন।</string>
+    <string name="title_pref_chain_proxy_config">রিলে কনফিগ (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">JSON ফাইল ব্রাউজ করে নির্বাচন করতে ট্যাপ করুন</string>
+    <string name="toast_chain_proxy_config_invalid">রিলে কনফিগ অবশ্যই JSON ফাইল হতে হবে, যাতে অন্তত একটি ইনবাউন্ড ও একটি আউটবাউন্ড থাকে</string>
+    <string name="toast_chain_proxy_start_failed">চেইন প্রক্সি চালু করা যায়নি: %1$s</string>
 </resources>

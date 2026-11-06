@@ -563,4 +563,11 @@
     <string name="sub_info_open_page">開啟訂閱資訊頁面</string>
     <string name="sub_info_unlimited">無限制</string>
 
+    <string name="title_chain_proxy_settings">鏈式代理</string>
+    <string name="title_pref_chain_proxy_enabled">鏈式代理</string>
+    <string name="summary_pref_chain_proxy_enabled">在獨立核心上與設定檔中的設定同時執行所選的中繼設定。透過其自身的入站，使用 SOCKS 或 HTTP 連線。</string>
+    <string name="title_pref_chain_proxy_config">中繼設定（JSON）</string>
+    <string name="summary_pref_chain_proxy_config_none">點擊瀏覽並選擇 JSON 檔案</string>
+    <string name="toast_chain_proxy_config_invalid">中繼設定必須是至少包含一個入站和一個出站的 JSON 檔案</string>
+    <string name="toast_chain_proxy_start_failed">鏈式代理啟動失敗：%1$s</string>
 </resources>

@@ -89,6 +89,9 @@ object AppConfig {
     const val PREF_AUTO_REMOVE_INVALID_AFTER_TEST = "pref_auto_remove_invalid_after_test"
     const val PREF_AUTO_SORT_AFTER_TEST = "pref_auto_sort_after_test"
     const val PREF_REAL_PING_CONCURRENCY = "pref_real_ping_concurrency"
+    const val PREF_CHAIN_PROXY_ENABLED = "pref_chain_proxy_enabled"
+    const val PREF_CHAIN_PROXY_CONFIG = "pref_chain_proxy_config"
+    const val PREF_CHAIN_PROXY_CONFIG_NAME = "pref_chain_proxy_config_name"
 
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"

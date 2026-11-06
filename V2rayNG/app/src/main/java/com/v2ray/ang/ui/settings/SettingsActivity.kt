@@ -41,7 +41,7 @@ import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvString
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.root.RootManager
-import com.v2ray.ang.ui.base.BaseComponentActivity
+import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.CollapsiblePreferenceGroupHeader
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
@@ -55,7 +55,7 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.launch
 
-class SettingsActivity : BaseComponentActivity() {
+class SettingsActivity : HelperBaseComponentActivity() {
 
     private val viewModel: SettingsViewModel by viewModels()
 
@@ -83,13 +83,23 @@ class SettingsActivity : BaseComponentActivity() {
         toastError(R.string.toast_system_vpn_settings_unavailable)
     }
 
+    /** Opens the file picker. Any file type is offered, the content is validated as JSON after selection. */
+    private fun browseChainProxyConfig() {
+        launchFileChooser("*/*") { uri ->
+            if (uri != null) {
+                viewModel.importChainProxyConfig(uri)
+            }
+        }
+    }
+
     @Composable
     override fun ScreenContent() {
         SettingsScreen(
             viewModel = viewModel,
             onBackClick = { finish() },
             onModeHelpClicked = { Utils.openUri(this, AppConfig.APP_WIKI_MODE) },
-            onSystemVpnSettingsClicked = ::openSystemVpnSettings
+            onSystemVpnSettingsClicked = ::openSystemVpnSettings,
+            onChainProxyBrowseClicked = ::browseChainProxyConfig
         )
     }
 }
@@ -100,17 +110,20 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onModeHelpClicked: () -> Unit,
-    onSystemVpnSettingsClicked: () -> Unit
+    onSystemVpnSettingsClicked: () -> Unit,
+    onChainProxyBrowseClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
+    val chainProxyConfigName by viewModel.chainProxyConfigName.collectAsStateWithLifecycle()
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var coreSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var muxSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
+    var chainProxySettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
@@ -175,6 +188,8 @@ fun SettingsScreen(
     var dnsHosts by rememberMmkvString(AppConfig.PREF_DNS_HOSTS, "")
     var coreLogLevel by rememberMmkvString(AppConfig.PREF_LOGLEVEL, "warning")
     var outboundResolveMethod by rememberMmkvString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD)
+
+    var chainProxyEnabled by rememberMmkvBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)
 
     var isBooted by rememberMmkvBool(AppConfig.PREF_IS_BOOTED, false)
     var delayTestUrl by rememberMmkvString(AppConfig.PREF_DELAY_TEST_URL, "")
@@ -629,6 +644,27 @@ fun SettingsScreen(
                             observatoryLeastLoadTimeout = value
                         }
                     }
+                )
+            }
+
+            CollapsiblePreferenceGroupHeader(
+                title = stringResource(R.string.title_chain_proxy_settings),
+                expanded = chainProxySettingsExpanded,
+                onExpandedChange = { chainProxySettingsExpanded = it }
+            )
+            if (chainProxySettingsExpanded) {
+                SettingsSwitchItem(
+                    title = stringResource(R.string.title_pref_chain_proxy_enabled),
+                    summary = stringResource(R.string.summary_pref_chain_proxy_enabled),
+                    checked = chainProxyEnabled,
+                    onCheckedChange = { chainProxyEnabled = it }
+                )
+                SettingsMenuItem(
+                    title = stringResource(R.string.title_pref_chain_proxy_config),
+                    subtitle = chainProxyConfigName.ifEmpty {
+                        stringResource(R.string.summary_pref_chain_proxy_config_none)
+                    },
+                    onClick = onChainProxyBrowseClicked
                 )
             }
 

@@ -563,4 +563,11 @@
     <string name="sub_info_open_page">打开订阅信息页面</string>
     <string name="sub_info_unlimited">无限制</string>
 
+    <string name="title_chain_proxy_settings">链式代理</string>
+    <string name="title_pref_chain_proxy_enabled">链式代理</string>
+    <string name="summary_pref_chain_proxy_enabled">在独立内核上与配置文件中的配置同时运行所选的中继配置。通过其自身的入站，使用 SOCKS 或 HTTP 连接。</string>
+    <string name="title_pref_chain_proxy_config">中继配置（JSON）</string>
+    <string name="summary_pref_chain_proxy_config_none">点击浏览并选择 JSON 文件</string>
+    <string name="toast_chain_proxy_config_invalid">中继配置必须是至少包含一个入站和一个出站的 JSON 文件</string>
+    <string name="toast_chain_proxy_start_failed">链式代理启动失败：%1$s</string>
 </resources>

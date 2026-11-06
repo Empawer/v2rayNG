@@ -573,4 +573,11 @@
     <string name="sub_info_open_page">فتح صفحة معلومات الاشتراك</string>
     <string name="sub_info_unlimited">غير محدود</string>
 
+    <string name="title_chain_proxy_settings">البروكسي المتسلسل</string>
+    <string name="title_pref_chain_proxy_enabled">البروكسي المتسلسل</string>
+    <string name="summary_pref_chain_proxy_enabled">تشغيل إعداد التتابع المحدد على نواة منفصلة بالتزامن مع إعدادات ملفك. اتصل به عبر SOCKS أو HTTP من خلال المنفذ الوارد الخاص به.</string>
+    <string name="title_pref_chain_proxy_config">إعداد التتابع (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">اضغط لاستعراض ملف JSON واختياره</string>
+    <string name="toast_chain_proxy_config_invalid">يجب أن يكون إعداد التتابع ملف JSON يحتوي على وارد واحد وصادر واحد على الأقل</string>
+    <string name="toast_chain_proxy_start_failed">فشل تشغيل البروكسي المتسلسل: %1$s</string>
 </resources>

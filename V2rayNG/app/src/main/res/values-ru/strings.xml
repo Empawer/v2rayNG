@@ -569,4 +569,11 @@
     <string name="sub_info_open_page">Открыть страницу подписки</string>
     <string name="sub_info_unlimited">Без ограничений</string>
 
+    <string name="title_chain_proxy_settings">Цепочка прокси</string>
+    <string name="title_pref_chain_proxy_enabled">Цепочка прокси</string>
+    <string name="summary_pref_chain_proxy_enabled">Запускает выбранную релейную конфигурацию на отдельном ядре одновременно с конфигурациями профиля. Подключайтесь к ней по SOCKS или HTTP через её собственный inbound.</string>
+    <string name="title_pref_chain_proxy_config">Релейная конфигурация (JSON)</string>
+    <string name="summary_pref_chain_proxy_config_none">Нажмите, чтобы выбрать JSON-файл</string>
+    <string name="toast_chain_proxy_config_invalid">Релейная конфигурация должна быть JSON-файлом хотя бы с одним inbound и одним outbound</string>
+    <string name="toast_chain_proxy_start_failed">Не удалось запустить цепочку прокси: %1$s</string>
 </resources>
