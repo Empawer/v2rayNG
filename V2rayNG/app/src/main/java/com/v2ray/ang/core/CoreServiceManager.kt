@@ -19,6 +19,7 @@ import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
+import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
 import com.v2ray.ang.extension.toastError
@@ -210,7 +211,22 @@ object CoreServiceManager {
             return
         }
 
-        val content = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_CONFIG)
+        val sourceGuid = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "")
+        if (ChainProxyConfig.isMainProfile(sourceGuid, MmkvManager.getSelectServer())) {
+            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} start skipped, relay is the main profile")
+            service.toastError(R.string.toast_chain_proxy_same_profile, true)
+            stopChainProxy()
+            return
+        }
+        val profileRaw = sourceGuid?.takeIf { it.isNotEmpty() }?.let {
+            // Only a custom JSON profile is a complete core config.
+            if (MmkvManager.decodeServerConfig(it)?.configType == EConfigType.CUSTOM) MmkvManager.decodeServerRaw(it) else null
+        }
+        val content = ChainProxyConfig.selectContent(
+            sourceGuid,
+            profileRaw,
+            MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_CONFIG)
+        )
         if (!ChainProxyConfig.shouldStartRelay(enabled, content) || content == null) {
             LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} start skipped, config missing or invalid")
             service.toastError(R.string.toast_chain_proxy_config_invalid, true)

@@ -569,8 +569,12 @@
     <string name="title_chain_proxy_settings">Zəncirvari proksi</string>
     <string name="title_pref_chain_proxy_enabled">Zəncirvari proksi</string>
     <string name="summary_pref_chain_proxy_enabled">Seçilmiş relay konfiqurasiyasını profil konfiqurasiyaları ilə yanaşı ayrıca nüvədə işə salın. Ona öz inbound-u vasitəsilə SOCKS və ya HTTP ilə qoşulun.</string>
-    <string name="title_pref_chain_proxy_config">Relay konfiqurasiyası (JSON)</string>
+    <string name="title_pref_chain_proxy_config">JSON faylı seçin</string>
     <string name="summary_pref_chain_proxy_config_none">JSON faylını seçmək üçün toxunun</string>
     <string name="toast_chain_proxy_config_invalid">Relay konfiqurasiyası ən azı bir inbound və bir outbound olan JSON faylı olmalıdır</string>
     <string name="toast_chain_proxy_start_failed">Zəncirvari proksi başlamadı: %1$s</string>
+    <string name="title_pref_chain_proxy_profile">Tətbiqdəki konfiqurasiyalardan seçin</string>
+    <string name="summary_pref_chain_proxy_profile_none">Tətbiqə əvvəlcədən əlavə edilmiş JSON konfiqurasiyalarından birini seçin</string>
+    <string name="toast_chain_proxy_profile_none">Tətbiqdə JSON konfiqurasiyası yoxdur. Əvvəlcə xüsusi JSON konfiqurasiyası əlavə edin</string>
+    <string name="toast_chain_proxy_same_profile">Relay konfiqurasiyası qoşulmaqda olan profil ilə eyni ola bilməz</string>
 </resources>

@@ -576,8 +576,12 @@
     <string name="title_chain_proxy_settings">البروكسي المتسلسل</string>
     <string name="title_pref_chain_proxy_enabled">البروكسي المتسلسل</string>
     <string name="summary_pref_chain_proxy_enabled">تشغيل إعداد التتابع المحدد على نواة منفصلة بالتزامن مع إعدادات ملفك. اتصل به عبر SOCKS أو HTTP من خلال المنفذ الوارد الخاص به.</string>
-    <string name="title_pref_chain_proxy_config">إعداد التتابع (JSON)</string>
+    <string name="title_pref_chain_proxy_config">اختيار ملف JSON</string>
     <string name="summary_pref_chain_proxy_config_none">اضغط لاستعراض ملف JSON واختياره</string>
     <string name="toast_chain_proxy_config_invalid">يجب أن يكون إعداد التتابع ملف JSON يحتوي على وارد واحد وصادر واحد على الأقل</string>
     <string name="toast_chain_proxy_start_failed">فشل تشغيل البروكسي المتسلسل: %1$s</string>
+    <string name="title_pref_chain_proxy_profile">اختيار من إعدادات التطبيق</string>
+    <string name="summary_pref_chain_proxy_profile_none">اختر أحد إعدادات JSON المضافة مسبقاً إلى التطبيق</string>
+    <string name="toast_chain_proxy_profile_none">لا توجد إعدادات JSON في التطبيق. أضف إعداد JSON مخصصاً أولاً</string>
+    <string name="toast_chain_proxy_same_profile">لا يمكن أن يكون إعداد التتابع هو نفس الملف الذي يجري الاتصال به</string>
 </resources>

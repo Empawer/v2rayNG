@@ -566,8 +566,12 @@
     <string name="title_chain_proxy_settings">链式代理</string>
     <string name="title_pref_chain_proxy_enabled">链式代理</string>
     <string name="summary_pref_chain_proxy_enabled">在独立内核上与配置文件中的配置同时运行所选的中继配置。通过其自身的入站，使用 SOCKS 或 HTTP 连接。</string>
-    <string name="title_pref_chain_proxy_config">中继配置（JSON）</string>
+    <string name="title_pref_chain_proxy_config">选择 JSON 文件</string>
     <string name="summary_pref_chain_proxy_config_none">点击浏览并选择 JSON 文件</string>
     <string name="toast_chain_proxy_config_invalid">中继配置必须是至少包含一个入站和一个出站的 JSON 文件</string>
     <string name="toast_chain_proxy_start_failed">链式代理启动失败：%1$s</string>
+    <string name="title_pref_chain_proxy_profile">从应用内配置中选择</string>
+    <string name="summary_pref_chain_proxy_profile_none">选择已添加到应用中的 JSON 配置之一</string>
+    <string name="toast_chain_proxy_profile_none">应用中没有 JSON 配置，请先添加自定义 JSON 配置</string>
+    <string name="toast_chain_proxy_same_profile">中继配置不能与正在连接的配置相同</string>
 </resources>

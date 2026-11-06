@@ -572,8 +572,12 @@
     <string name="title_chain_proxy_settings">Цепочка прокси</string>
     <string name="title_pref_chain_proxy_enabled">Цепочка прокси</string>
     <string name="summary_pref_chain_proxy_enabled">Запускает выбранную релейную конфигурацию на отдельном ядре одновременно с конфигурациями профиля. Подключайтесь к ней по SOCKS или HTTP через её собственный inbound.</string>
-    <string name="title_pref_chain_proxy_config">Релейная конфигурация (JSON)</string>
+    <string name="title_pref_chain_proxy_config">Выбрать JSON-файл</string>
     <string name="summary_pref_chain_proxy_config_none">Нажмите, чтобы выбрать JSON-файл</string>
     <string name="toast_chain_proxy_config_invalid">Релейная конфигурация должна быть JSON-файлом хотя бы с одним inbound и одним outbound</string>
     <string name="toast_chain_proxy_start_failed">Не удалось запустить цепочку прокси: %1$s</string>
+    <string name="title_pref_chain_proxy_profile">Выбрать из конфигураций приложения</string>
+    <string name="summary_pref_chain_proxy_profile_none">Выберите одну из JSON-конфигураций, уже добавленных в приложение</string>
+    <string name="toast_chain_proxy_profile_none">В приложении нет JSON-конфигураций. Сначала добавьте собственную JSON-конфигурацию</string>
+    <string name="toast_chain_proxy_same_profile">Релейная конфигурация не может совпадать с профилем, к которому выполняется подключение</string>
 </resources>

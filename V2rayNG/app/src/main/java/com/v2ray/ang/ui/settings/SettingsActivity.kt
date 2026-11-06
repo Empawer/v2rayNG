@@ -45,6 +45,7 @@ import com.v2ray.ang.ui.base.HelperBaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.CollapsiblePreferenceGroupHeader
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
+import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsEditItem
 import com.v2ray.ang.ui.compose.SettingsListItem
 import com.v2ray.ang.ui.compose.SettingsMenuItem
@@ -64,6 +65,7 @@ class SettingsActivity : HelperBaseComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.refreshSystemVpnSettingsAvailability()
+                viewModel.refreshChainProxyProfiles()
             }
         }
     }
@@ -116,7 +118,9 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
-    val chainProxyConfigName by viewModel.chainProxyConfigName.collectAsStateWithLifecycle()
+    val chainProxySelection by viewModel.chainProxySelection.collectAsStateWithLifecycle()
+    val chainProxyProfiles by viewModel.chainProxyProfiles.collectAsStateWithLifecycle()
+    var showChainProxyProfileDialog by remember { mutableStateOf(false) }
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var coreSettingsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -661,10 +665,27 @@ fun SettingsScreen(
                 )
                 SettingsMenuItem(
                     title = stringResource(R.string.title_pref_chain_proxy_config),
-                    subtitle = chainProxyConfigName.ifEmpty {
+                    subtitle = if (chainProxySelection.name.isNotEmpty() && !chainProxySelection.fromProfile) {
+                        chainProxySelection.name
+                    } else {
                         stringResource(R.string.summary_pref_chain_proxy_config_none)
                     },
                     onClick = onChainProxyBrowseClicked
+                )
+                SettingsMenuItem(
+                    title = stringResource(R.string.title_pref_chain_proxy_profile),
+                    subtitle = if (chainProxySelection.name.isNotEmpty() && chainProxySelection.fromProfile) {
+                        chainProxySelection.name
+                    } else {
+                        stringResource(R.string.summary_pref_chain_proxy_profile_none)
+                    },
+                    onClick = {
+                        if (chainProxyProfiles.isEmpty()) {
+                            viewModel.toastError(R.string.toast_chain_proxy_profile_none)
+                        } else {
+                            showChainProxyProfileDialog = true
+                        }
+                    }
                 )
             }
 
@@ -755,5 +776,22 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
             NavigationBarsSpacer()
         }
+    }
+
+    if (showChainProxyProfileDialog) {
+        SelectListDialog(
+            title = stringResource(R.string.title_pref_chain_proxy_profile),
+            options = chainProxyProfiles,
+            optionText = { it.remarks },
+            selectedOption = chainProxyProfiles.find {
+                chainProxySelection.fromProfile && it.guid == chainProxySelection.guid
+            },
+            onSelected = { option ->
+                showChainProxyProfileDialog = false
+                viewModel.selectChainProxyProfile(option)
+            },
+            onDismiss = { showChainProxyProfileDialog = false },
+            showRadio = true
+        )
     }
 }

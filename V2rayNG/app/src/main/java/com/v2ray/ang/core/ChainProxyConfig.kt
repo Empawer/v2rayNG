@@ -52,6 +52,20 @@ object ChainProxyConfig {
         return enabled && validate(content) == Validation.Valid
     }
 
+    /**
+     * Picks the relay JSON. A source profile, when set, wins over the imported file content, so edits made
+     * to that profile inside the app reach the relay on the next start. A set profile whose JSON is gone
+     * yields null instead of falling back to a file the user no longer means.
+     */
+    fun selectContent(sourceGuid: String?, profileRaw: String?, fileContent: String?): String? {
+        return if (sourceGuid.isNullOrEmpty()) fileContent else profileRaw
+    }
+
+    /** The relay must not be the profile the main core runs, both would listen on the same inbound. */
+    fun isMainProfile(sourceGuid: String?, mainGuid: String?): Boolean {
+        return !sourceGuid.isNullOrEmpty() && sourceGuid == mainGuid
+    }
+
     private fun JsonObject.hasNonEmptyArray(name: String): Boolean {
         val element = get(name)
         return element != null && element.isJsonArray && (element as JsonArray).size() > 0

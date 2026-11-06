@@ -2,6 +2,7 @@ package com.v2ray.ang.core
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
@@ -68,5 +69,30 @@ class ChainProxyConfigTest {
         assertFalse(ChainProxyConfig.shouldStartRelay(true, null))
         assertFalse(ChainProxyConfig.shouldStartRelay(true, "not json"))
         assertFalse(ChainProxyConfig.shouldStartRelay(true, """{"inbounds": []}"""))
+    }
+
+    @Test
+    fun selectContentUsesFileWhenNoProfileIsSet() {
+        assertEquals("file", ChainProxyConfig.selectContent(null, "profile", "file"))
+        assertEquals("file", ChainProxyConfig.selectContent("", "profile", "file"))
+    }
+
+    @Test
+    fun selectContentPrefersProfileOverFile() {
+        assertEquals("profile", ChainProxyConfig.selectContent("guid-1", "profile", "file"))
+    }
+
+    @Test
+    fun selectContentDoesNotFallBackToFileWhenProfileIsGone() {
+        assertNull(ChainProxyConfig.selectContent("guid-1", null, "file"))
+    }
+
+    @Test
+    fun isMainProfileDetectsTheProfileRunByTheMainCore() {
+        assertTrue(ChainProxyConfig.isMainProfile("guid-1", "guid-1"))
+        assertFalse(ChainProxyConfig.isMainProfile("guid-1", "guid-2"))
+        assertFalse(ChainProxyConfig.isMainProfile("guid-1", null))
+        assertFalse(ChainProxyConfig.isMainProfile("", ""))
+        assertFalse(ChainProxyConfig.isMainProfile(null, "guid-1"))
     }
 }

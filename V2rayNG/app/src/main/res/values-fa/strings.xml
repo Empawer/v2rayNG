@@ -568,8 +568,12 @@
     <string name="title_chain_proxy_settings">پروکسی زنجیره‌ای</string>
     <string name="title_pref_chain_proxy_enabled">پروکسی زنجیره‌ای</string>
     <string name="summary_pref_chain_proxy_enabled">کانفیگ رله انتخاب‌شده با یک هسته جداگانه و همزمان با کانفیگ‌های پروفایل اجرا می‌شود. با SOCKS یا HTTP از طریق inbound خودش به آن وصل شوید.</string>
-    <string name="title_pref_chain_proxy_config">کانفیگ رله (JSON)</string>
+    <string name="title_pref_chain_proxy_config">انتخاب فایل JSON</string>
     <string name="summary_pref_chain_proxy_config_none">برای انتخاب فایل JSON ضربه بزنید</string>
     <string name="toast_chain_proxy_config_invalid">کانفیگ رله باید فایل JSON با حداقل یک inbound و یک outbound باشد</string>
     <string name="toast_chain_proxy_start_failed">راه‌اندازی پروکسی زنجیره‌ای ناموفق بود: %1$s</string>
+    <string name="title_pref_chain_proxy_profile">انتخاب از کانفیگ‌های برنامه</string>
+    <string name="summary_pref_chain_proxy_profile_none">یکی از کانفیگ‌های JSON که قبلاً به برنامه اضافه شده را انتخاب کنید</string>
+    <string name="toast_chain_proxy_profile_none">هیچ کانفیگ JSON در برنامه وجود ندارد. ابتدا یک کانفیگ JSON سفارشی اضافه کنید</string>
+    <string name="toast_chain_proxy_same_profile">کانفیگ رله نمی‌تواند همان پروفایلی باشد که به آن متصل می‌شوید</string>
 </resources>

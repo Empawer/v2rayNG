@@ -8,6 +8,7 @@ import android.provider.Settings
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.ChainProxyConfig
+import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.root.RootManager
@@ -19,17 +20,71 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 
+/** The stored relay config: [fromProfile] tells whether [guid] is an app profile or an imported file. */
+data class ChainProxySelection(
+    val name: String = "",
+    val guid: String = "",
+    val fromProfile: Boolean = false
+)
+
+/** A custom JSON profile that can be used as the relay config. */
+data class ChainProxyProfileOption(val guid: String, val remarks: String)
+
 class SettingsViewModel(application: Application) : BaseViewModel(application) {
 
     private val _systemVpnSettingsAvailable = MutableStateFlow(false)
     val systemVpnSettingsAvailable = _systemVpnSettingsAvailable.asStateFlow()
 
-    private val _chainProxyConfigName = MutableStateFlow(
-        MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_CONFIG_NAME, "").orEmpty()
+    private val _chainProxySelection = MutableStateFlow(
+        MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "").orEmpty().let { guid ->
+            ChainProxySelection(
+                name = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_CONFIG_NAME, "").orEmpty(),
+                guid = guid,
+                fromProfile = guid.isNotEmpty()
+            )
+        }
     )
 
-    /** Display name of the stored chain proxy relay config, empty when none is selected. */
-    val chainProxyConfigName = _chainProxyConfigName.asStateFlow()
+    /** The stored chain proxy relay config, an empty name means none is selected. */
+    val chainProxySelection = _chainProxySelection.asStateFlow()
+
+    private val _chainProxyProfiles = MutableStateFlow<List<ChainProxyProfileOption>>(emptyList())
+
+    /** Custom JSON profiles in the app, without the profile the main core is set to run. */
+    val chainProxyProfiles = _chainProxyProfiles.asStateFlow()
+
+    suspend fun refreshChainProxyProfiles() {
+        _chainProxyProfiles.value = withContext(Dispatchers.IO) {
+            val mainGuid = MmkvManager.getSelectServer()
+            MmkvManager.decodeAllServerList().distinct().mapNotNull { guid ->
+                val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null
+                if (profile.configType != EConfigType.CUSTOM || guid == mainGuid) return@mapNotNull null
+                ChainProxyProfileOption(guid, profile.remarks.ifBlank { guid })
+            }
+        }
+    }
+
+    /**
+     * Uses a custom JSON profile of the app as the relay config. Only the profile id is stored, so the
+     * relay follows later edits of that profile. A running service is flagged for restart.
+     */
+    fun selectChainProxyProfile(option: ChainProxyProfileOption) {
+        val raw = MmkvManager.decodeServerRaw(option.guid)
+        if (ChainProxyConfig.validate(raw) != ChainProxyConfig.Validation.Valid) {
+            toastError(R.string.toast_chain_proxy_config_invalid)
+            return
+        }
+        val saved = MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, option.guid) &&
+            MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_CONFIG_NAME, option.remarks) &&
+            MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_CONFIG, "")
+        if (!saved) {
+            toastError(R.string.toast_chain_proxy_config_invalid)
+            return
+        }
+        _chainProxySelection.value = ChainProxySelection(option.remarks, option.guid, fromProfile = true)
+        SettingsChangeManager.makeRestartService()
+        toastSuccess(R.string.toast_success)
+    }
 
     suspend fun refreshSystemVpnSettingsAvailability() {
         _systemVpnSettingsAvailable.value = withContext(Dispatchers.IO) {
@@ -99,12 +154,13 @@ class SettingsViewModel(application: Application) : BaseViewModel(application) {
             }
 
             val saved = MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_CONFIG, picked.first) &&
-                MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_CONFIG_NAME, picked.second)
+                MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_CONFIG_NAME, picked.second) &&
+                MmkvManager.encodeSettings(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "")
             if (!saved) {
                 toastError(R.string.toast_chain_proxy_config_invalid)
                 return@launchLoading
             }
-            _chainProxyConfigName.value = picked.second
+            _chainProxySelection.value = ChainProxySelection(picked.second, "", fromProfile = false)
             SettingsChangeManager.makeRestartService()
             toastSuccess(R.string.toast_success)
         }

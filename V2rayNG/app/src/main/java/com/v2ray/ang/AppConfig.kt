@@ -92,6 +92,7 @@ object AppConfig {
     const val PREF_CHAIN_PROXY_ENABLED = "pref_chain_proxy_enabled"
     const val PREF_CHAIN_PROXY_CONFIG = "pref_chain_proxy_config"
     const val PREF_CHAIN_PROXY_CONFIG_NAME = "pref_chain_proxy_config_name"
+    const val PREF_CHAIN_PROXY_SOURCE_GUID = "pref_chain_proxy_source_guid"
 
     /** Cache keys. */
     const val CACHE_SUBSCRIPTION_ID = "cache_subscription_id"
