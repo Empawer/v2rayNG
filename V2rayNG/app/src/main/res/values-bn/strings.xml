@@ -567,13 +567,13 @@
 
     <string name="title_chain_proxy_settings">চেইন প্রক্সি</string>
     <string name="title_pref_chain_proxy_enabled">চেইন প্রক্সি</string>
-    <string name="summary_pref_chain_proxy_enabled">নির্বাচিত রিলে কনফিগ আপনার প্রোফাইল কনফিগের সাথে একই সময়ে আলাদা কোরে চালান। এর নিজস্ব ইনবাউন্ডের মাধ্যমে SOCKS বা HTTP দিয়ে সংযুক্ত হন।</string>
-    <string name="title_pref_chain_proxy_config">JSON ফাইল নির্বাচন করুন</string>
-    <string name="summary_pref_chain_proxy_config_none">JSON ফাইল ব্রাউজ করে নির্বাচন করতে ট্যাপ করুন</string>
-    <string name="toast_chain_proxy_config_invalid">রিলে কনফিগ অবশ্যই JSON ফাইল হতে হবে, যাতে অন্তত একটি ইনবাউন্ড ও একটি আউটবাউন্ড থাকে</string>
+    <string name="summary_pref_chain_proxy_enabled">Chain বোতামে নির্বাচিত কনফিগ আলাদা কোরে চলে এবং নির্বাচিত প্রোফাইল এর মাধ্যমে সংযুক্ত হয়।</string>
+    <string name="toast_chain_proxy_config_invalid">চেইন কনফিগ নির্বাচিত নেই বা অবৈধ। অন্তত একটি ইনবাউন্ড ও একটি আউটবাউন্ডসহ একটি কাস্টম JSON কনফিগ নির্বাচন করুন</string>
     <string name="toast_chain_proxy_start_failed">চেইন প্রক্সি চালু করা যায়নি: %1$s</string>
-    <string name="title_pref_chain_proxy_profile">অ্যাপের কনফিগ থেকে নির্বাচন করুন</string>
-    <string name="summary_pref_chain_proxy_profile_none">অ্যাপে আগে থেকে যোগ করা JSON কনফিগগুলোর একটি বেছে নিন</string>
     <string name="toast_chain_proxy_profile_none">অ্যাপে কোনো JSON কনফিগ নেই। আগে একটি কাস্টম JSON কনফিগ যোগ করুন</string>
     <string name="toast_chain_proxy_same_profile">রিলে কনফিগ এবং যে প্রোফাইলে সংযোগ হচ্ছে তা একই হতে পারবে না</string>
+    <string name="menu_item_chain">চেইন</string>
+    <string name="title_chain_relay_dialog">চেইন কনফিগ</string>
+    <string name="chain_relay_none">কোনোটিই নয়</string>
+    <string name="toast_chain_proxy_no_hop">চেইন কনফিগে SOCKS বা HTTP ইনবাউন্ড লাগবে এবং প্রোফাইলে চেইন করা যায় এমন আউটবাউন্ড লাগবে</string>
 </resources>

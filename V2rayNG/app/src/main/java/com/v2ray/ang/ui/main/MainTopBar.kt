@@ -12,6 +12,8 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,6 +38,7 @@ fun MainTopBar(
     onSearchClose: () -> Unit,
     onSearchToggle: (Boolean) -> Unit,
     onMenuClick: () -> Unit,
+    onChainClick: () -> Unit,
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit
 ) {
@@ -69,6 +72,9 @@ fun MainTopBar(
         },
         actions = {
             if (!showSearch) {
+                TextButton(onClick = onChainClick) {
+                    Text(stringResource(R.string.menu_item_chain))
+                }
                 IconButton(onClick = { onSearchToggle(true) }) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))
                 }

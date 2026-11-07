@@ -565,13 +565,13 @@
 
     <string name="title_chain_proxy_settings">Proxy chuỗi</string>
     <string name="title_pref_chain_proxy_enabled">Proxy chuỗi</string>
-    <string name="summary_pref_chain_proxy_enabled">Chạy cấu hình relay đã chọn trên một lõi riêng cùng lúc với các cấu hình hồ sơ. Kết nối bằng SOCKS hoặc HTTP qua inbound riêng của nó.</string>
-    <string name="title_pref_chain_proxy_config">Chọn tệp JSON</string>
-    <string name="summary_pref_chain_proxy_config_none">Nhấn để duyệt và chọn tệp JSON</string>
-    <string name="toast_chain_proxy_config_invalid">Cấu hình relay phải là tệp JSON có ít nhất một inbound và một outbound</string>
+    <string name="summary_pref_chain_proxy_enabled">Cấu hình được chọn bằng nút Chain chạy trên một lõi riêng và hồ sơ đã chọn kết nối qua nó.</string>
+    <string name="toast_chain_proxy_config_invalid">Chưa chọn cấu hình chuỗi hoặc cấu hình không hợp lệ. Hãy chọn cấu hình JSON tùy chỉnh có ít nhất một inbound và một outbound</string>
     <string name="toast_chain_proxy_start_failed">Không thể khởi động proxy chuỗi: %1$s</string>
-    <string name="title_pref_chain_proxy_profile">Chọn từ cấu hình trong ứng dụng</string>
-    <string name="summary_pref_chain_proxy_profile_none">Chọn một cấu hình JSON đã được thêm vào ứng dụng</string>
     <string name="toast_chain_proxy_profile_none">Ứng dụng chưa có cấu hình JSON nào. Hãy thêm cấu hình JSON tùy chỉnh trước</string>
     <string name="toast_chain_proxy_same_profile">Cấu hình relay không thể trùng với hồ sơ đang kết nối</string>
+    <string name="menu_item_chain">Chuỗi</string>
+    <string name="title_chain_relay_dialog">Cấu hình chuỗi</string>
+    <string name="chain_relay_none">Không</string>
+    <string name="toast_chain_proxy_no_hop">Cấu hình chuỗi cần inbound SOCKS hoặc HTTP, và hồ sơ cần có outbound có thể nối chuỗi</string>
 </resources>

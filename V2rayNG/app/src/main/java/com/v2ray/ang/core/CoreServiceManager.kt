@@ -41,6 +41,7 @@ import kotlinx.coroutines.cancelChildren
 import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
 import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
@@ -54,11 +55,11 @@ object CoreServiceManager {
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
 
     // Chain proxy relay: a second, independent core. Its start and stop run on one dedicated thread so
-    // they stay in request order and never block the service main thread.
+    // they stay in request order, a stop queued by an earlier session can never hit a newer start.
     private val chainProxyCore = ChainProxyCore()
-    private val chainProxyScope = CoroutineScope(
-        SupervisorJob() + Executors.newSingleThreadExecutor { Thread(it, "chain-proxy-core").apply { isDaemon = true } }.asCoroutineDispatcher()
-    )
+    private val chainProxyDispatcher =
+        Executors.newSingleThreadExecutor { Thread(it, "chain-proxy-core").apply { isDaemon = true } }.asCoroutineDispatcher()
+    private val chainProxyScope = CoroutineScope(SupervisorJob() + chainProxyDispatcher)
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
     private var processFinder: XrayProcessFinder? = null
@@ -149,6 +150,9 @@ object CoreServiceManager {
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
 
+        // The chain config starts first, then the profile config is given a hop that points at it.
+        val coreContent = prepareChainProxy(service, guid, result.content)
+
         currentConfig = config
         var tunFd = vpnInterface?.fd ?: 0
         val dialerMode = BrowserDialerMode.from(config.browserDialerMode)
@@ -165,10 +169,16 @@ object CoreServiceManager {
         if (dialerAddr.isNotNullEmpty()) {
             CoreNativeManager.reconcileBrowserDialer(dialerAddr)
         }
-        coreController.startLoop(result.content, tunFd)
+        try {
+            coreController.startLoop(coreContent, tunFd)
 
-        if (!isRunning()) {
-            error("Core failed to start")
+            if (!isRunning()) {
+                error("Core failed to start")
+            }
+        } catch (e: Exception) {
+            // The chain core only exists for the profile core, it must not outlive a failed start.
+            stopChainProxy()
+            throw e
         }
 
         if (browserDialer != null) {
@@ -194,56 +204,65 @@ object CoreServiceManager {
         }
         NotificationManager.startSpeedNotification()
         LogUtil.i(AppConfig.TAG, "StartCore-Manager: Core started successfully")
-
-        // The relay never decides whether the profile core counts as started.
-        startChainProxy(service)
     }
 
     /**
-     * Starts or stops the chain proxy relay core to match the current settings.
-     * Switch off: any relay left over from an earlier start is stopped, the profile core is untouched.
-     * A relay failure is reported to the user and never fails the profile core.
+     * Brings the chain proxy relay core in line with the current settings and returns the config the
+     * profile core must start with.
+     *
+     * Switch on with a runnable chain config: the relay core starts and the profile config gets a first
+     * hop that points at the relay's SOCKS or HTTP inbound, so the profile's connections leave through it.
+     * Switch off, or any problem with the chain config: no relay runs and the profile config is returned
+     * unchanged. A problem is reported to the user and never fails the profile core.
      */
-    private fun startChainProxy(service: Service) {
-        val enabled = MmkvManager.decodeSettingsBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)
-        if (!enabled) {
+    private fun prepareChainProxy(service: Service, profileGuid: String, profileContent: String): String {
+        val mode = chainProxyMode()
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)) {
             stopChainProxy()
-            return
+            return profileContent
+        }
+
+        fun skip(reason: String, messageRes: Int): String {
+            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: $mode chain skipped, $reason")
+            service.toastError(messageRes, true)
+            stopChainProxy()
+            return profileContent
         }
 
         val sourceGuid = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "")
-        if (ChainProxyConfig.isMainProfile(sourceGuid, MmkvManager.getSelectServer())) {
-            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} start skipped, relay is the main profile")
-            service.toastError(R.string.toast_chain_proxy_same_profile, true)
-            stopChainProxy()
-            return
+        if (sourceGuid.isNullOrEmpty()) {
+            return skip("no chain config selected", R.string.toast_chain_proxy_config_invalid)
         }
-        val profileRaw = sourceGuid?.takeIf { it.isNotEmpty() }?.let {
-            // Only a custom JSON profile is a complete core config.
-            if (MmkvManager.decodeServerConfig(it)?.configType == EConfigType.CUSTOM) MmkvManager.decodeServerRaw(it) else null
-        }
-        val content = ChainProxyConfig.selectContent(
-            sourceGuid,
-            profileRaw,
-            MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_CONFIG)
-        )
-        if (!ChainProxyConfig.shouldStartRelay(enabled, content) || content == null) {
-            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} start skipped, config missing or invalid")
-            service.toastError(R.string.toast_chain_proxy_config_invalid, true)
-            stopChainProxy()
-            return
+        if (ChainProxyConfig.isMainProfile(sourceGuid, profileGuid)) {
+            return skip("chain config is the selected profile", R.string.toast_chain_proxy_same_profile)
         }
 
-        chainProxyScope.launch {
-            try {
-                chainProxyCore.start(content)
-                LogUtil.i(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} relay core started")
-            } catch (e: Exception) {
-                // The config is not logged, it may hold credentials.
-                LogUtil.e(AppConfig.TAG, "StartCore-ChainProxy: ${chainProxyMode()} relay core failed to start", e)
-                val reason = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
-                service.toastError(service.getString(R.string.toast_chain_proxy_start_failed, reason), true)
-            }
+        // Only a custom JSON profile is a complete core config.
+        val relayContent = if (MmkvManager.decodeServerConfig(sourceGuid)?.configType == EConfigType.CUSTOM) {
+            MmkvManager.decodeServerRaw(sourceGuid)
+        } else {
+            null
+        }
+        if (relayContent == null || !ChainProxyConfig.shouldStartRelay(true, relayContent)) {
+            return skip("chain config missing or invalid", R.string.toast_chain_proxy_config_invalid)
+        }
+
+        val endpoint = ChainProxyConfig.findRelayEndpoint(relayContent)
+            ?: return skip("chain config has no SOCKS or HTTP inbound", R.string.toast_chain_proxy_no_hop)
+        val chainedContent = ChainProxyConfig.applyRelayHop(profileContent, endpoint)
+            ?: return skip("profile has no outbound to chain", R.string.toast_chain_proxy_no_hop)
+
+        return try {
+            // Queued behind any earlier stop, and finished before the profile core starts.
+            runBlocking { withContext(chainProxyDispatcher) { chainProxyCore.start(relayContent) } }
+            LogUtil.i(AppConfig.TAG, "StartCore-ChainProxy: $mode relay core started on ${endpoint.address}:${endpoint.port}")
+            chainedContent
+        } catch (e: Exception) {
+            // The config is not logged, it may hold credentials.
+            LogUtil.e(AppConfig.TAG, "StartCore-ChainProxy: $mode relay core failed to start", e)
+            val reason = e.message?.takeUnless { it.isBlank() } ?: e.javaClass.simpleName
+            service.toastError(service.getString(R.string.toast_chain_proxy_start_failed, reason), true)
+            profileContent
         }
     }
 

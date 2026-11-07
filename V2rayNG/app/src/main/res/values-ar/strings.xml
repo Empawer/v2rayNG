@@ -575,13 +575,13 @@
 
     <string name="title_chain_proxy_settings">البروكسي المتسلسل</string>
     <string name="title_pref_chain_proxy_enabled">البروكسي المتسلسل</string>
-    <string name="summary_pref_chain_proxy_enabled">تشغيل إعداد التتابع المحدد على نواة منفصلة بالتزامن مع إعدادات ملفك. اتصل به عبر SOCKS أو HTTP من خلال المنفذ الوارد الخاص به.</string>
-    <string name="title_pref_chain_proxy_config">اختيار ملف JSON</string>
-    <string name="summary_pref_chain_proxy_config_none">اضغط لاستعراض ملف JSON واختياره</string>
-    <string name="toast_chain_proxy_config_invalid">يجب أن يكون إعداد التتابع ملف JSON يحتوي على وارد واحد وصادر واحد على الأقل</string>
+    <string name="summary_pref_chain_proxy_enabled">يعمل الإعداد المحدد بزر Chain على نواة منفصلة، ويتصل الملف المحدد من خلاله.</string>
+    <string name="toast_chain_proxy_config_invalid">إعداد السلسلة غير محدد أو غير صالح. اختر إعداد JSON مخصصاً يحتوي على وارد واحد وصادر واحد على الأقل</string>
     <string name="toast_chain_proxy_start_failed">فشل تشغيل البروكسي المتسلسل: %1$s</string>
-    <string name="title_pref_chain_proxy_profile">اختيار من إعدادات التطبيق</string>
-    <string name="summary_pref_chain_proxy_profile_none">اختر أحد إعدادات JSON المضافة مسبقاً إلى التطبيق</string>
     <string name="toast_chain_proxy_profile_none">لا توجد إعدادات JSON في التطبيق. أضف إعداد JSON مخصصاً أولاً</string>
     <string name="toast_chain_proxy_same_profile">لا يمكن أن يكون إعداد التتابع هو نفس الملف الذي يجري الاتصال به</string>
+    <string name="menu_item_chain">سلسلة</string>
+    <string name="title_chain_relay_dialog">إعداد السلسلة</string>
+    <string name="chain_relay_none">لا شيء</string>
+    <string name="toast_chain_proxy_no_hop">يحتاج إعداد السلسلة إلى وارد من نوع SOCKS أو HTTP، ويحتاج الملف إلى صادر يمكن ربطه بالسلسلة</string>
 </resources>

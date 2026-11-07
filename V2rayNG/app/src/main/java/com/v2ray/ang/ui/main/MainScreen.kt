@@ -26,19 +26,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.ui.compose.LocalDarkTheme
 import com.v2ray.ang.ui.compose.QRCodeDialog
+import com.v2ray.ang.ui.compose.SelectListDialog
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 @Composable
 fun MainScreen(
     mainViewModel: MainViewModel,
+    chainRelayViewModel: ChainRelayViewModel,
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
+    onChainRelaySelected: (String) -> Unit,
 ) {
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val groups = uiState.groups
@@ -55,6 +60,9 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var showChainDialog by remember { mutableStateOf(false) }
+    val chainRelayGuid by chainRelayViewModel.selectedGuid.collectAsStateWithLifecycle()
+    val chainRelayOptions by chainRelayViewModel.options.collectAsStateWithLifecycle()
     var showDelAllConfirm by remember { mutableStateOf(false) }
     var showDelDuplicateConfirm by remember { mutableStateOf(false) }
     var showDelInvalidConfirm by remember { mutableStateOf(false) }
@@ -122,6 +130,23 @@ fun MainScreen(
         onConfirmRemove = { guid -> showRemoveConfirm = null; onAction(MainAction.RemoveServer(guid)) }
     )
 
+    if (showChainDialog) {
+        val noneOption = ChainRelayOption("", stringResource(R.string.chain_relay_none))
+        val dialogOptions = listOf(noneOption) + chainRelayOptions
+        SelectListDialog(
+            title = stringResource(R.string.title_chain_relay_dialog),
+            options = dialogOptions,
+            optionText = { it.remarks },
+            selectedOption = dialogOptions.find { it.guid == chainRelayGuid } ?: noneOption,
+            onSelected = { option ->
+                showChainDialog = false
+                onChainRelaySelected(option.guid)
+            },
+            onDismiss = { showChainDialog = false },
+            showRadio = true
+        )
+    }
+
     if (shareTarget != null) {
         val (guid, profile, more) = shareTarget!!
         ShareMethodDialog(
@@ -167,6 +192,16 @@ fun MainScreen(
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
+                    onChainClick = {
+                        scope.launch {
+                            chainRelayViewModel.refreshOptions()
+                            if (chainRelayViewModel.options.value.isEmpty()) {
+                                chainRelayViewModel.toastError(R.string.toast_chain_proxy_profile_none)
+                            } else {
+                                showChainDialog = true
+                            }
+                        }
+                    },
                     onAction = onAction,
                     onMoreMenuAction = { action ->
                         when (action) {

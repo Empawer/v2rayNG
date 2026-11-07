@@ -568,13 +568,13 @@
 
     <string name="title_chain_proxy_settings">Chain Proxy</string>
     <string name="title_pref_chain_proxy_enabled">Chain proxy</string>
-    <string name="summary_pref_chain_proxy_enabled">Run the selected relay config on a separate core alongside your profile configs. Connect to it with SOCKS or HTTP through its own inbound.</string>
-    <string name="title_pref_chain_proxy_config">Select JSON file</string>
-    <string name="summary_pref_chain_proxy_config_none">Tap to browse and select a JSON file</string>
-    <string name="toast_chain_proxy_config_invalid">The relay config must be a JSON file with at least one inbound and one outbound</string>
+    <string name="summary_pref_chain_proxy_enabled">Run the config selected with the Chain button on a separate core. The selected profile connects through it.</string>
+    <string name="toast_chain_proxy_config_invalid">Chain config missing or invalid. Select a custom JSON config with at least one inbound and one outbound</string>
     <string name="toast_chain_proxy_start_failed">Chain proxy failed to start: %1$s</string>
-    <string name="title_pref_chain_proxy_profile">Choose from app configs</string>
-    <string name="summary_pref_chain_proxy_profile_none">Pick one of the JSON configs already added to the app</string>
     <string name="toast_chain_proxy_profile_none">No JSON configs in the app. Add a custom JSON config first</string>
     <string name="toast_chain_proxy_same_profile">The relay config can\'t be the same profile that is being connected</string>
+    <string name="menu_item_chain">Chain</string>
+    <string name="title_chain_relay_dialog">Chain config</string>
+    <string name="chain_relay_none">None</string>
+    <string name="toast_chain_proxy_no_hop">The chain config needs a SOCKS or HTTP inbound, and the profile needs an outbound that can be chained</string>
 </resources>

@@ -41,11 +41,10 @@ import com.v2ray.ang.handler.MmkvManager.rememberMmkvBool
 import com.v2ray.ang.handler.MmkvManager.rememberMmkvString
 import com.v2ray.ang.handler.SettingsChangeManager
 import com.v2ray.ang.root.RootManager
-import com.v2ray.ang.ui.base.HelperBaseComponentActivity
+import com.v2ray.ang.ui.base.BaseComponentActivity
 import com.v2ray.ang.ui.compose.AppTopBar
 import com.v2ray.ang.ui.compose.CollapsiblePreferenceGroupHeader
 import com.v2ray.ang.ui.compose.NavigationBarsSpacer
-import com.v2ray.ang.ui.compose.SelectListDialog
 import com.v2ray.ang.ui.compose.SettingsEditItem
 import com.v2ray.ang.ui.compose.SettingsListItem
 import com.v2ray.ang.ui.compose.SettingsMenuItem
@@ -56,7 +55,7 @@ import com.v2ray.ang.util.LogUtil
 import com.v2ray.ang.util.Utils
 import kotlinx.coroutines.launch
 
-class SettingsActivity : HelperBaseComponentActivity() {
+class SettingsActivity : BaseComponentActivity() {
 
     private val viewModel: SettingsViewModel by viewModels()
 
@@ -65,7 +64,6 @@ class SettingsActivity : HelperBaseComponentActivity() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.RESUMED) {
                 viewModel.refreshSystemVpnSettingsAvailability()
-                viewModel.refreshChainProxyProfiles()
             }
         }
     }
@@ -85,23 +83,13 @@ class SettingsActivity : HelperBaseComponentActivity() {
         toastError(R.string.toast_system_vpn_settings_unavailable)
     }
 
-    /** Opens the file picker. Any file type is offered, the content is validated as JSON after selection. */
-    private fun browseChainProxyConfig() {
-        launchFileChooser("*/*") { uri ->
-            if (uri != null) {
-                viewModel.importChainProxyConfig(uri)
-            }
-        }
-    }
-
     @Composable
     override fun ScreenContent() {
         SettingsScreen(
             viewModel = viewModel,
             onBackClick = { finish() },
             onModeHelpClicked = { Utils.openUri(this, AppConfig.APP_WIKI_MODE) },
-            onSystemVpnSettingsClicked = ::openSystemVpnSettings,
-            onChainProxyBrowseClicked = ::browseChainProxyConfig
+            onSystemVpnSettingsClicked = ::openSystemVpnSettings
         )
     }
 }
@@ -112,15 +100,11 @@ fun SettingsScreen(
     viewModel: SettingsViewModel,
     onBackClick: () -> Unit,
     onModeHelpClicked: () -> Unit,
-    onSystemVpnSettingsClicked: () -> Unit,
-    onChainProxyBrowseClicked: () -> Unit
+    onSystemVpnSettingsClicked: () -> Unit
 ) {
     val scrollState = rememberScrollState()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val systemVpnSettingsAvailable by viewModel.systemVpnSettingsAvailable.collectAsStateWithLifecycle()
-    val chainProxySelection by viewModel.chainProxySelection.collectAsStateWithLifecycle()
-    val chainProxyProfiles by viewModel.chainProxyProfiles.collectAsStateWithLifecycle()
-    var showChainProxyProfileDialog by remember { mutableStateOf(false) }
     var uiSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var vpnSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var coreSettingsExpanded by rememberSaveable { mutableStateOf(true) }
@@ -663,30 +647,6 @@ fun SettingsScreen(
                     checked = chainProxyEnabled,
                     onCheckedChange = { chainProxyEnabled = it }
                 )
-                SettingsMenuItem(
-                    title = stringResource(R.string.title_pref_chain_proxy_config),
-                    subtitle = if (chainProxySelection.name.isNotEmpty() && !chainProxySelection.fromProfile) {
-                        chainProxySelection.name
-                    } else {
-                        stringResource(R.string.summary_pref_chain_proxy_config_none)
-                    },
-                    onClick = onChainProxyBrowseClicked
-                )
-                SettingsMenuItem(
-                    title = stringResource(R.string.title_pref_chain_proxy_profile),
-                    subtitle = if (chainProxySelection.name.isNotEmpty() && chainProxySelection.fromProfile) {
-                        chainProxySelection.name
-                    } else {
-                        stringResource(R.string.summary_pref_chain_proxy_profile_none)
-                    },
-                    onClick = {
-                        if (chainProxyProfiles.isEmpty()) {
-                            viewModel.toastError(R.string.toast_chain_proxy_profile_none)
-                        } else {
-                            showChainProxyProfileDialog = true
-                        }
-                    }
-                )
             }
 
             CollapsiblePreferenceGroupHeader(
@@ -776,22 +736,5 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(24.dp))
             NavigationBarsSpacer()
         }
-    }
-
-    if (showChainProxyProfileDialog) {
-        SelectListDialog(
-            title = stringResource(R.string.title_pref_chain_proxy_profile),
-            options = chainProxyProfiles,
-            optionText = { it.remarks },
-            selectedOption = chainProxyProfiles.find {
-                chainProxySelection.fromProfile && it.guid == chainProxySelection.guid
-            },
-            onSelected = { option ->
-                showChainProxyProfileDialog = false
-                viewModel.selectChainProxyProfile(option)
-            },
-            onDismiss = { showChainProxyProfileDialog = false },
-            showRadio = true
-        )
     }
 }

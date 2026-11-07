@@ -59,6 +59,8 @@ class MainActivity : HelperBaseComponentActivity() {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
 
+    private val chainRelayViewModel: ChainRelayViewModel by viewModels()
+
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == RESULT_OK) startV2Ray()
@@ -103,6 +105,11 @@ class MainActivity : HelperBaseComponentActivity() {
         BackHandler { moveTaskToBack(false) }
         MainScreen(
             mainViewModel = mainViewModel,
+            chainRelayViewModel = chainRelayViewModel,
+            onChainRelaySelected = { guid ->
+                // A running service restarts so the chain is applied to the current connection.
+                if (chainRelayViewModel.select(guid)) LauncherManager.restartService(this)
+            },
             onAction = { action ->
                 when (action) {
                     MainAction.ToggleService -> handleFabAction()
