@@ -26,14 +26,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.v2ray.ang.R
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.ui.compose.LocalDarkTheme
 import com.v2ray.ang.ui.compose.QRCodeDialog
-import com.v2ray.ang.ui.compose.SelectListDialog
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
@@ -43,7 +40,7 @@ fun MainScreen(
     chainRelayViewModel: ChainRelayViewModel,
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
-    onChainRelaySelected: (String) -> Unit,
+    onChainApply: (enabled: Boolean, guid: String) -> Unit,
 ) {
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val groups = uiState.groups
@@ -62,6 +59,7 @@ fun MainScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showChainDialog by remember { mutableStateOf(false) }
     val chainRelayGuid by chainRelayViewModel.selectedGuid.collectAsStateWithLifecycle()
+    val chainEnabled by chainRelayViewModel.enabled.collectAsStateWithLifecycle()
     val chainRelayOptions by chainRelayViewModel.options.collectAsStateWithLifecycle()
     var showDelAllConfirm by remember { mutableStateOf(false) }
     var showDelDuplicateConfirm by remember { mutableStateOf(false) }
@@ -131,19 +129,15 @@ fun MainScreen(
     )
 
     if (showChainDialog) {
-        val noneOption = ChainRelayOption("", stringResource(R.string.chain_relay_none))
-        val dialogOptions = listOf(noneOption) + chainRelayOptions
-        SelectListDialog(
-            title = stringResource(R.string.title_chain_relay_dialog),
-            options = dialogOptions,
-            optionText = { it.remarks },
-            selectedOption = dialogOptions.find { it.guid == chainRelayGuid } ?: noneOption,
-            onSelected = { option ->
+        ChainDialog(
+            options = chainRelayOptions,
+            initialEnabled = chainEnabled,
+            initialGuid = chainRelayGuid,
+            onConfirm = { enabled, guid ->
                 showChainDialog = false
-                onChainRelaySelected(option.guid)
+                onChainApply(enabled, guid)
             },
-            onDismiss = { showChainDialog = false },
-            showRadio = true
+            onDismiss = { showChainDialog = false }
         )
     }
 
@@ -192,14 +186,11 @@ fun MainScreen(
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
+                    chainActive = chainEnabled && chainRelayGuid.isNotEmpty(),
                     onChainClick = {
                         scope.launch {
                             chainRelayViewModel.refreshOptions()
-                            if (chainRelayViewModel.options.value.isEmpty()) {
-                                chainRelayViewModel.toastError(R.string.toast_chain_proxy_profile_none)
-                            } else {
-                                showChainDialog = true
-                            }
+                            showChainDialog = true
                         }
                     },
                     onAction = onAction,

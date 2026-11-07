@@ -571,7 +571,7 @@
 
     <string name="title_chain_proxy_settings">Цепочка прокси</string>
     <string name="title_pref_chain_proxy_enabled">Цепочка прокси</string>
-    <string name="summary_pref_chain_proxy_enabled">Конфигурация, выбранная кнопкой Chain, запускается на отдельном ядре, и выбранный профиль подключается через неё.</string>
+    <string name="summary_pref_chain_proxy_enabled">Запускает выбранную конфигурацию цепочки на отдельном ядре вместе с профилем, который вы запускаете. Подключайтесь к её порту SOCKS или HTTP своим прокси-профилем.</string>
     <string name="toast_chain_proxy_config_invalid">Конфигурация цепочки не выбрана или недействительна. Выберите собственную JSON-конфигурацию хотя бы с одним inbound и одним outbound</string>
     <string name="toast_chain_proxy_start_failed">Не удалось запустить цепочку прокси: %1$s</string>
     <string name="toast_chain_proxy_profile_none">В приложении нет JSON-конфигураций. Сначала добавьте собственную JSON-конфигурацию</string>
@@ -579,5 +579,4 @@
     <string name="menu_item_chain">Цепочка</string>
     <string name="title_chain_relay_dialog">Конфигурация цепочки</string>
     <string name="chain_relay_none">Нет</string>
-    <string name="toast_chain_proxy_no_hop">Конфигурации цепочки нужен inbound SOCKS или HTTP, а профилю нужен outbound, который можно добавить в цепочку</string>
 </resources>

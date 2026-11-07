@@ -6,12 +6,11 @@ import libv2ray.CoreCallbackHandler
 import libv2ray.CoreController
 
 /**
- * Second, fully independent native core that runs the user's chain proxy relay config.
+ * Native core that runs the user's chain proxy relay config.
  *
- * It exists next to the profile core owned by [CoreServiceManager] and has its own
- * [CoreController], so the two never share a config, a listener or a stop call. This is a different
- * owner from the profile core: its config is chosen in settings and not from a profile, and it
- * never owns a tun descriptor. [CoreServiceManager] decides when it starts and stops.
+ * It lives in the `:chainproxy` process, owned by [com.v2ray.ang.service.ChainProxyService], and has its
+ * own [CoreController], so it never shares a config, a listener, a stop call or Go runtime state with the
+ * profile core in the daemon process. It never owns a tun descriptor.
  *
  * Calls are blocking native calls and must run off the main thread. Every method takes [lock], so a
  * stop and a start issued back to back cannot interleave.

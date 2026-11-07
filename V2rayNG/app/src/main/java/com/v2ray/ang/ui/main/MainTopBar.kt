@@ -38,6 +38,7 @@ fun MainTopBar(
     onSearchClose: () -> Unit,
     onSearchToggle: (Boolean) -> Unit,
     onMenuClick: () -> Unit,
+    chainActive: Boolean,
     onChainClick: () -> Unit,
     onAction: (MainAction) -> Unit,
     onMoreMenuAction: (MainMoreMenuAction) -> Unit
@@ -73,7 +74,10 @@ fun MainTopBar(
         actions = {
             if (!showSearch) {
                 TextButton(onClick = onChainClick) {
-                    Text(stringResource(R.string.menu_item_chain))
+                    Text(
+                        text = stringResource(R.string.menu_item_chain),
+                        color = if (chainActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 }
                 IconButton(onClick = { onSearchToggle(true) }) {
                     Icon(painterResource(R.drawable.ic_search_24dp), contentDescription = stringResource(R.string.acc_search))

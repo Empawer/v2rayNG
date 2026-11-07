@@ -565,7 +565,7 @@
 
     <string name="title_chain_proxy_settings">鏈式代理</string>
     <string name="title_pref_chain_proxy_enabled">鏈式代理</string>
-    <string name="summary_pref_chain_proxy_enabled">以 Chain 按鈕選擇的設定會在獨立核心上執行，所選設定檔透過它連線。</string>
+    <string name="summary_pref_chain_proxy_enabled">在獨立核心上與您啟動的設定檔一同執行所選的鏈式設定。請用您自己的代理設定檔連線其 SOCKS 或 HTTP 連接埠。</string>
     <string name="toast_chain_proxy_config_invalid">未選擇鏈式設定或設定無效。請選擇至少包含一個入站和一個出站的自訂 JSON 設定</string>
     <string name="toast_chain_proxy_start_failed">鏈式代理啟動失敗：%1$s</string>
     <string name="toast_chain_proxy_profile_none">應用程式中沒有 JSON 設定，請先加入自訂 JSON 設定</string>
@@ -573,5 +573,4 @@
     <string name="menu_item_chain">鏈式</string>
     <string name="title_chain_relay_dialog">鏈式設定</string>
     <string name="chain_relay_none">無</string>
-    <string name="toast_chain_proxy_no_hop">鏈式設定需要 SOCKS 或 HTTP 入站，且設定檔需要有可鏈式連線的出站</string>
 </resources>

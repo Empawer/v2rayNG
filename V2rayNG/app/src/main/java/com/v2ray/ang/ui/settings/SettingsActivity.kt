@@ -111,7 +111,6 @@ fun SettingsScreen(
     var muxSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var fragmentSettingsExpanded by rememberSaveable { mutableStateOf(false) }
     var observatorySettingsExpanded by rememberSaveable { mutableStateOf(false) }
-    var chainProxySettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var advancedSettingsExpanded by rememberSaveable { mutableStateOf(true) }
     var modeSettingsExpanded by rememberSaveable { mutableStateOf(true) }
 
@@ -176,8 +175,6 @@ fun SettingsScreen(
     var dnsHosts by rememberMmkvString(AppConfig.PREF_DNS_HOSTS, "")
     var coreLogLevel by rememberMmkvString(AppConfig.PREF_LOGLEVEL, "warning")
     var outboundResolveMethod by rememberMmkvString(AppConfig.PREF_OUTBOUND_DOMAIN_RESOLVE_METHOD, AppConfig.DEFAULT_OUTBOUND_DOMAIN_RESOLVE_METHOD)
-
-    var chainProxyEnabled by rememberMmkvBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)
 
     var isBooted by rememberMmkvBool(AppConfig.PREF_IS_BOOTED, false)
     var delayTestUrl by rememberMmkvString(AppConfig.PREF_DELAY_TEST_URL, "")
@@ -632,20 +629,6 @@ fun SettingsScreen(
                             observatoryLeastLoadTimeout = value
                         }
                     }
-                )
-            }
-
-            CollapsiblePreferenceGroupHeader(
-                title = stringResource(R.string.title_chain_proxy_settings),
-                expanded = chainProxySettingsExpanded,
-                onExpandedChange = { chainProxySettingsExpanded = it }
-            )
-            if (chainProxySettingsExpanded) {
-                SettingsSwitchItem(
-                    title = stringResource(R.string.title_pref_chain_proxy_enabled),
-                    summary = stringResource(R.string.summary_pref_chain_proxy_enabled),
-                    checked = chainProxyEnabled,
-                    onCheckedChange = { chainProxyEnabled = it }
                 )
             }
 

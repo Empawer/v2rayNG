@@ -568,7 +568,7 @@
 
     <string name="title_chain_proxy_settings">Zəncirvari proksi</string>
     <string name="title_pref_chain_proxy_enabled">Zəncirvari proksi</string>
-    <string name="summary_pref_chain_proxy_enabled">Chain düyməsi ilə seçilən konfiqurasiya ayrıca nüvədə işləyir. Seçilmiş profil onun üzərindən qoşulur.</string>
+    <string name="summary_pref_chain_proxy_enabled">Seçilmiş zəncir konfiqurasiyasını başlatdığınız profillə birlikdə ayrıca nüvədə işə salır. Onun SOCKS və ya HTTP portuna öz proksi profilinizlə qoşulun.</string>
     <string name="toast_chain_proxy_config_invalid">Zəncir konfiqurasiyası seçilməyib və ya yararsızdır. Ən azı bir inbound və bir outbound olan xüsusi JSON konfiqurasiyası seçin</string>
     <string name="toast_chain_proxy_start_failed">Zəncirvari proksi başlamadı: %1$s</string>
     <string name="toast_chain_proxy_profile_none">Tətbiqdə JSON konfiqurasiyası yoxdur. Əvvəlcə xüsusi JSON konfiqurasiyası əlavə edin</string>
@@ -576,5 +576,4 @@
     <string name="menu_item_chain">Zəncir</string>
     <string name="title_chain_relay_dialog">Zəncir konfiqurasiyası</string>
     <string name="chain_relay_none">Heç biri</string>
-    <string name="toast_chain_proxy_no_hop">Zəncir konfiqurasiyasının SOCKS və ya HTTP inbound-u, profilin isə zəncirlənə bilən outbound-u olmalıdır</string>
 </resources>

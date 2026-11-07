@@ -256,6 +256,13 @@
                 android:value="proxy" />
         </service>
 
+        <!-- Chain proxy relay core. It runs in its own process so its native core shares nothing with the
+             profile core in :daemon, and it is bound by :daemon so it never outlives it. -->
+        <service
+            android:name=".service.ChainProxyService"
+            android:exported="false"
+            android:process=":chainproxy" />
+
         <service
             android:name=".service.CoreTestService"
             android:exported="false"
