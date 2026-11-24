@@ -52,7 +52,7 @@ jobs:
       if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
       run: |
         bash compile-hevtun.sh
-    
+
     - name: Save libhevtun
       if: steps.cache-libhevtun-restore.outputs.cache-hit != 'true'
       uses: actions/cache/save@v6
@@ -62,7 +62,7 @@ jobs:
 
     - name: Copy libhevtun
       run: |
-        cp -r ${{ github.workspace }}/libs ${{ github.workspace }}/V2rayNG/app
+        cp -r "${{ github.workspace }}/libs" "${{ github.workspace }}/V2rayNG/app"
 
     - name: Fetch AndroidLibXrayLite tag
       run: |
@@ -94,30 +94,39 @@ jobs:
         encodedString: ${{ secrets.APP_KEYSTORE_BASE64 }}
 
     - name: Build APK
+      env:
+        KS_FILE: ${{ steps.android_keystore.outputs.filePath }}
+        KS_PASS: ${{ secrets.APP_KEYSTORE_PASSWORD }}
+        KS_ALIAS: ${{ secrets.APP_KEYSTORE_ALIAS }}
+        KEY_PASS: ${{ secrets.APP_KEY_PASSWORD }}
       run: |
-        cd ${{ github.workspace }}/V2rayNG
+        cd "${{ github.workspace }}/V2rayNG"
         echo "sdk.dir=${ANDROID_HOME}" > local.properties
         chmod 755 gradlew
         ./gradlew licenseFdroidReleaseReport
-        ./gradlew assembleRelease -Pandroid.injected.signing.store.file=${{ steps.android_keystore.outputs.filePath }} -Pandroid.injected.signing.store.password=${{ secrets.APP_KEYSTORE_PASSWORD }} -Pandroid.injected.signing.key.alias=${{ secrets.APP_KEYSTORE_ALIAS }} -Pandroid.injected.signing.key.password=${{ secrets.APP_KEY_PASSWORD }}
-    
+        ./gradlew assembleRelease \
+          -Pandroid.injected.signing.store.file="$KS_FILE" \
+          -Pandroid.injected.signing.store.password="$KS_PASS" \
+          -Pandroid.injected.signing.key.alias="$KS_ALIAS" \
+          -Pandroid.injected.signing.key.password="$KEY_PASS"
+
     - name: Upload arm64-v8a APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: arm64-v8a
         path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*arm64-v8a*.apk
 
     - name: Upload armeabi-v7a APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: armeabi-v7a
         path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*armeabi-v7a*.apk
 
     - name: Upload x86 APK
       uses: actions/upload-artifact@v7
-      if: ${{  success() }}
+      if: ${{ success() }}
       with:
         name: x86-apk
         path: ${{ github.workspace }}/V2rayNG/app/build/outputs/apk/*/release/*x86*.apk
@@ -141,12 +150,14 @@ jobs:
           path: release
 
       - name: Sign APK files
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
         run: |
-          printf '%s' "${{ secrets.GPG_PRIVATE_KEY }}" | gpg --batch --import
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
           KEY=$(gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')
           mkdir -p release-files
 
-          find release -type f -name '*.apk' | while read apk; do
+          find release -type f -name '*.apk' | while read -r apk; do
             cp "$apk" release-files/
             gpg --batch --yes --local-user "$KEY" --detach-sign --output "release-files/$(basename "$apk").sig" "$apk"
           done
