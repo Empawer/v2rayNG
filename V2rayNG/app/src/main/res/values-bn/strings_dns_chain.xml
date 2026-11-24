@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">রিলে কনফিগ</string>
+    <string name="dns_chain_tab_dns">DNS চেইন</string>
+    <string name="dns_chain_title_enabled">DNS চেইন ব্যবহার করুন</string>
+    <string name="dns_chain_summary_enabled">SNI / Hello split সহ DoH। এটি নিজে থেকে চলে এবং কখনও VPN দিয়ে যায় না।</string>
+    <string name="dns_chain_title_settings">DNS চেইন সেটিংস</string>
+    <string name="dns_chain_hint">এটি dns_chain.ini ফাইলের লেখা। সম্পাদনা করে সংরক্ষণ চাপুন। ডিফল্ট বোতাম মূল লেখা ফিরিয়ে আনে।</string>
+    <string name="dns_chain_action_default">ডিফল্ট</string>
+    <string name="dns_chain_action_save">সংরক্ষণ</string>
+    <string name="dns_chain_toast_saved">DNS চেইন সেটিংস সংরক্ষিত হয়েছে</string>
+    <string name="dns_chain_toast_default">ডিফল্ট সেটিংস ফিরিয়ে আনা হয়েছে। রাখতে সংরক্ষণ চাপুন।</string>
+    <string name="dns_chain_toast_invalid">অবৈধ সেটিংস: %1$s</string>
+    <string name="toast_dns_chain_start_failed">DNS চেইন চালু হয়নি: %1$s</string>
+    <string name="dns_chain_exclusive_note">একসময়ে শুধু একটি চেইন পদ্ধতি কাজ করে। একটি চালু করলে অন্যটি বন্ধ হয়।</string>
+</resources>

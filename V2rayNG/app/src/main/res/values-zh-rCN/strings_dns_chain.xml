@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">中继配置</string>
+    <string name="dns_chain_tab_dns">DNS 链</string>
+    <string name="dns_chain_title_enabled">使用 DNS 链</string>
+    <string name="dns_chain_summary_enabled">带 SNI / Hello 分片的 DoH。独立运行，绝不经过 VPN。</string>
+    <string name="dns_chain_title_settings">DNS 链设置</string>
+    <string name="dns_chain_hint">这是 dns_chain.ini 的文本。编辑后点击保存。“默认”会恢复原始文本。</string>
+    <string name="dns_chain_action_default">默认</string>
+    <string name="dns_chain_action_save">保存</string>
+    <string name="dns_chain_toast_saved">DNS 链设置已保存</string>
+    <string name="dns_chain_toast_default">已恢复默认设置，点击保存以保留。</string>
+    <string name="dns_chain_toast_invalid">设置无效：%1$s</string>
+    <string name="toast_dns_chain_start_failed">DNS 链无法启动：%1$s</string>
+    <string name="dns_chain_exclusive_note">同一时间只有一种链方式生效。开启一种会关闭另一种。</string>
+</resources>

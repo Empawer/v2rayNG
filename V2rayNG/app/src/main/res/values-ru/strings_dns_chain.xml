@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">Конфигурация relay</string>
+    <string name="dns_chain_tab_dns">DNS-цепочка</string>
+    <string name="dns_chain_title_enabled">Использовать DNS-цепочку</string>
+    <string name="dns_chain_summary_enabled">DoH с разделением SNI / Hello. Работает независимо и никогда не идёт через VPN.</string>
+    <string name="dns_chain_title_settings">Настройки DNS-цепочки</string>
+    <string name="dns_chain_hint">Это текст файла dns_chain.ini. Измените его и нажмите «Сохранить». «По умолчанию» возвращает исходный текст.</string>
+    <string name="dns_chain_action_default">По умолчанию</string>
+    <string name="dns_chain_action_save">Сохранить</string>
+    <string name="dns_chain_toast_saved">Настройки DNS-цепочки сохранены</string>
+    <string name="dns_chain_toast_default">Настройки по умолчанию восстановлены. Нажмите «Сохранить», чтобы оставить их.</string>
+    <string name="dns_chain_toast_invalid">Неверные настройки: %1$s</string>
+    <string name="toast_dns_chain_start_failed">Не удалось запустить DNS-цепочку: %1$s</string>
+    <string name="dns_chain_exclusive_note">Одновременно работает только один способ цепочки. Включение одного отключает другой.</string>
+</resources>

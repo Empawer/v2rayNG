@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">Relay config</string>
+    <string name="dns_chain_tab_dns">DNS chain</string>
+    <string name="dns_chain_title_enabled">Use DNS chain</string>
+    <string name="dns_chain_summary_enabled">DoH with SNI / Hello split. Runs on its own and is never routed through the VPN.</string>
+    <string name="dns_chain_title_settings">DNS chain settings</string>
+    <string name="dns_chain_hint">This is the text of dns_chain.ini. Edit it and press Save. Default brings back the original text.</string>
+    <string name="dns_chain_action_default">Default</string>
+    <string name="dns_chain_action_save">Save</string>
+    <string name="dns_chain_toast_saved">DNS chain settings saved</string>
+    <string name="dns_chain_toast_default">Default settings restored. Press Save to keep them.</string>
+    <string name="dns_chain_toast_invalid">Invalid settings: %1$s</string>
+    <string name="toast_dns_chain_start_failed">DNS chain could not start: %1$s</string>
+    <string name="dns_chain_exclusive_note">Only one chain method works at a time. Turning one on turns the other off.</string>
+</resources>

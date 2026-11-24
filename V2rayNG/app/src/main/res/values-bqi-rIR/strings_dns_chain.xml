@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">پیکربندی رِله</string>
+    <string name="dns_chain_tab_dns">زنجیره DNS</string>
+    <string name="dns_chain_title_enabled">استفاده از زنجیره DNS</string>
+    <string name="dns_chain_summary_enabled">DoH همراه با SNI / Hello split. مستقل اجرا می‌شود و هرگز از مسیر VPN عبور نمی‌کند.</string>
+    <string name="dns_chain_title_settings">تنظیمات زنجیره DNS</string>
+    <string name="dns_chain_hint">این متن فایل dns_chain.ini است. آن را ویرایش و ذخیره کنید. دکمه پیش‌فرض متن اولیه را برمی‌گرداند.</string>
+    <string name="dns_chain_action_default">پیش‌فرض</string>
+    <string name="dns_chain_action_save">ذخیره</string>
+    <string name="dns_chain_toast_saved">تنظیمات زنجیره DNS ذخیره شد</string>
+    <string name="dns_chain_toast_default">تنظیمات پیش‌فرض برگردانده شد. برای ماندگاری ذخیره را بزنید.</string>
+    <string name="dns_chain_toast_invalid">تنظیمات نامعتبر: %1$s</string>
+    <string name="toast_dns_chain_start_failed">زنجیره DNS شروع نشد: %1$s</string>
+    <string name="dns_chain_exclusive_note">فقط یک روش زنجیره هم‌زمان کار می‌کند. روشن کردن یکی دیگری را خاموش می‌کند.</string>
+</resources>

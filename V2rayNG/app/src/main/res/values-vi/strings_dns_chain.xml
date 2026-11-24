@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">Cấu hình relay</string>
+    <string name="dns_chain_tab_dns">Chuỗi DNS</string>
+    <string name="dns_chain_title_enabled">Dùng chuỗi DNS</string>
+    <string name="dns_chain_summary_enabled">DoH kèm chia SNI / Hello. Chạy độc lập và không bao giờ đi qua VPN.</string>
+    <string name="dns_chain_title_settings">Cài đặt chuỗi DNS</string>
+    <string name="dns_chain_hint">Đây là nội dung tệp dns_chain.ini. Hãy sửa rồi nhấn Lưu. Nút Mặc định khôi phục nội dung gốc.</string>
+    <string name="dns_chain_action_default">Mặc định</string>
+    <string name="dns_chain_action_save">Lưu</string>
+    <string name="dns_chain_toast_saved">Đã lưu cài đặt chuỗi DNS</string>
+    <string name="dns_chain_toast_default">Đã khôi phục cài đặt mặc định. Nhấn Lưu để giữ lại.</string>
+    <string name="dns_chain_toast_invalid">Cài đặt không hợp lệ: %1$s</string>
+    <string name="toast_dns_chain_start_failed">Không thể khởi động chuỗi DNS: %1$s</string>
+    <string name="dns_chain_exclusive_note">Mỗi lần chỉ một phương thức chuỗi hoạt động. Bật cái này sẽ tắt cái kia.</string>
+</resources>

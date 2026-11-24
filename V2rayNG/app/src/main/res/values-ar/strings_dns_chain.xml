@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">إعداد المرحّل</string>
+    <string name="dns_chain_tab_dns">سلسلة DNS</string>
+    <string name="dns_chain_title_enabled">استخدام سلسلة DNS</string>
+    <string name="dns_chain_summary_enabled">DoH مع تقسيم SNI / Hello. يعمل بشكل مستقل ولا يمر عبر VPN أبدًا.</string>
+    <string name="dns_chain_title_settings">إعدادات سلسلة DNS</string>
+    <string name="dns_chain_hint">هذا هو نص ملف dns_chain.ini. عدّله ثم اضغط حفظ. زر الافتراضي يعيد النص الأصلي.</string>
+    <string name="dns_chain_action_default">افتراضي</string>
+    <string name="dns_chain_action_save">حفظ</string>
+    <string name="dns_chain_toast_saved">تم حفظ إعدادات سلسلة DNS</string>
+    <string name="dns_chain_toast_default">تمت استعادة الإعدادات الافتراضية. اضغط حفظ للاحتفاظ بها.</string>
+    <string name="dns_chain_toast_invalid">إعدادات غير صالحة: %1$s</string>
+    <string name="toast_dns_chain_start_failed">تعذر تشغيل سلسلة DNS: %1$s</string>
+    <string name="dns_chain_exclusive_note">تعمل طريقة سلسلة واحدة فقط في كل مرة. تشغيل إحداهما يوقف الأخرى.</string>
+</resources>

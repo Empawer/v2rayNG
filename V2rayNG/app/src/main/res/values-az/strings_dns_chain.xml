@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="dns_chain_tab_relay">Relay konfiqurasiyası</string>
+    <string name="dns_chain_tab_dns">DNS zənciri</string>
+    <string name="dns_chain_title_enabled">DNS zəncirindən istifadə et</string>
+    <string name="dns_chain_summary_enabled">SNI / Hello split ilə DoH. Müstəqil işləyir və heç vaxt VPN-dən keçmir.</string>
+    <string name="dns_chain_title_settings">DNS zənciri ayarları</string>
+    <string name="dns_chain_hint">Bu dns_chain.ini faylının mətnidir. Redaktə edib Saxla düyməsini basın. Susmaya görə düyməsi ilkin mətni qaytarır.</string>
+    <string name="dns_chain_action_default">Susmaya görə</string>
+    <string name="dns_chain_action_save">Saxla</string>
+    <string name="dns_chain_toast_saved">DNS zənciri ayarları saxlanıldı</string>
+    <string name="dns_chain_toast_default">Susmaya görə ayarlar bərpa edildi. Saxlamaq üçün Saxla düyməsini basın.</string>
+    <string name="dns_chain_toast_invalid">Yanlış ayarlar: %1$s</string>
+    <string name="toast_dns_chain_start_failed">DNS zənciri başlamadı: %1$s</string>
+    <string name="dns_chain_exclusive_note">Eyni anda yalnız bir zəncir üsulu işləyir. Birini aktiv etmək digərini söndürür.</string>
+</resources>
