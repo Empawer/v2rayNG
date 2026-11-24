@@ -12,14 +12,17 @@ import android.os.ParcelFileDescriptor
 import android.system.OsConstants
 import androidx.core.content.ContextCompat
 import com.v2ray.ang.AppConfig
+import com.v2ray.ang.R
 import com.v2ray.ang.contracts.IDialerService
 import com.v2ray.ang.contracts.ServiceControl
 import com.v2ray.ang.dto.ConnectionTestResult
 import com.v2ray.ang.dto.OutboundTrafficStat
 import com.v2ray.ang.dto.entities.ProfileItem
 import com.v2ray.ang.enums.BrowserDialerMode
+import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.extension.delay
 import com.v2ray.ang.extension.isNotNullEmpty
+import com.v2ray.ang.extension.toastError
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.handler.NotificationManager
 import com.v2ray.ang.handler.SettingsManager
@@ -47,6 +50,7 @@ import java.net.InetSocketAddress
 object CoreServiceManager {
 
     private val coreController: CoreController = CoreNativeManager.newCoreController(CoreCallback())
+
     private val mMsgReceive = ReceiveMessageHandler()
     private var currentConfig: ProfileItem? = null
     private var processFinder: XrayProcessFinder? = null
@@ -137,6 +141,9 @@ object CoreServiceManager {
             error(result.errorMessage.ifBlank { "Failed to get V2Ray config" })
         }
 
+        // The relay core runs apart from the profile core, the user reaches it with a proxy profile of their own.
+        startChainProxy(service, guid)
+
         currentConfig = config
         var tunFd = vpnInterface?.fd ?: 0
         val dialerMode = BrowserDialerMode.from(config.browserDialerMode)
@@ -153,10 +160,16 @@ object CoreServiceManager {
         if (dialerAddr.isNotNullEmpty()) {
             CoreNativeManager.reconcileBrowserDialer(dialerAddr)
         }
-        coreController.startLoop(result.content, tunFd)
+        try {
+            coreController.startLoop(result.content, tunFd)
 
-        if (!isRunning()) {
-            error("Core failed to start")
+            if (!isRunning()) {
+                error("Core failed to start")
+            }
+        } catch (e: Exception) {
+            // The chain core only exists for the profile core, it must not outlive a failed start.
+            stopChainProxy()
+            throw e
         }
 
         if (browserDialer != null) {
@@ -185,12 +198,102 @@ object CoreServiceManager {
     }
 
     /**
+     * Brings the chain proxy relay core in line with the current settings.
+     *
+     * Switch on with a runnable chain config: the relay core starts in its own process, next to the profile
+     * core. Switch off, or any problem with the chain config: no relay runs. A problem is reported to the
+     * user and never fails the profile core. The profile config is never changed.
+     */
+    private fun startChainProxy(service: Service, profileGuid: String) {
+        val mode = chainProxyMode()
+
+        // The DNS chain is the other chain method. It needs no chain profile and never touches the VPN,
+        // the two methods are never on together, the Chain dialog switches one off when the other is on.
+        if (DnsChainStore.isEnabled()) {
+            startDnsChain(service, mode)
+            return
+        }
+
+        if (!MmkvManager.decodeSettingsBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)) {
+            stopChainProxy()
+            return
+        }
+
+        fun skip(reason: String, messageRes: Int) {
+            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: $mode chain skipped, $reason")
+            service.toastError(messageRes, true)
+            stopChainProxy()
+        }
+
+        val sourceGuid = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "")
+        if (sourceGuid.isNullOrEmpty()) {
+            skip("no chain config selected", R.string.toast_chain_proxy_config_invalid)
+            return
+        }
+        if (ChainProxyConfig.isMainProfile(sourceGuid, profileGuid)) {
+            skip("chain config is the selected profile", R.string.toast_chain_proxy_same_profile)
+            return
+        }
+
+        // Only a custom JSON profile is a complete core config.
+        val relayContent = if (MmkvManager.decodeServerConfig(sourceGuid)?.configType == EConfigType.CUSTOM) {
+            MmkvManager.decodeServerRaw(sourceGuid)
+        } else {
+            null
+        }
+        if (!ChainProxyConfig.shouldStartRelay(true, relayContent)) {
+            skip("chain config missing or invalid", R.string.toast_chain_proxy_config_invalid)
+            return
+        }
+
+        if (ChainProxyLauncher.start(service, sourceGuid)) {
+            LogUtil.i(AppConfig.TAG, "StartCore-ChainProxy: $mode relay start requested")
+        } else {
+            LogUtil.e(AppConfig.TAG, "StartCore-ChainProxy: $mode relay service could not be bound")
+            service.toastError(service.getString(R.string.toast_chain_proxy_start_failed, "relay service unavailable"), true)
+            stopChainProxy()
+        }
+    }
+
+    /** Starts the DNS chain proxy in the chain process. A problem is reported and never fails the profile core. */
+    private fun startDnsChain(service: Service, mode: String) {
+        try {
+            DnsChainStore.loadSettings()
+        } catch (e: DnsChainConfigException) {
+            LogUtil.w(AppConfig.TAG, "StartCore-ChainProxy: $mode DNS chain skipped, settings are invalid: ${e.message}")
+            service.toastError(service.getString(R.string.toast_dns_chain_start_failed, e.message.orEmpty()), true)
+            stopChainProxy()
+            return
+        }
+        if (ChainProxyLauncher.startDnsChain(service)) {
+            LogUtil.i(AppConfig.TAG, "StartCore-ChainProxy: $mode DNS chain start requested")
+        } else {
+            LogUtil.e(AppConfig.TAG, "StartCore-ChainProxy: $mode DNS chain service could not be bound")
+            service.toastError(service.getString(R.string.toast_dns_chain_start_failed, "service unavailable"), true)
+            stopChainProxy()
+        }
+    }
+
+    /** Stops the relay process binding. Safe to call when no relay runs. */
+    private fun stopChainProxy() {
+        ChainProxyLauncher.stop()
+    }
+
+    private fun chainProxyMode(): String = when {
+        SettingsManager.isRootMode() -> "root"
+        SettingsManager.isVpnMode() -> "vpn"
+        else -> "proxy"
+    }
+
+    /**
      * Stops the V2Ray core service.
      * Unregisters broadcast receivers, stops notifications, and shuts down plugins.
      * @return True if the core was stopped successfully, false otherwise.
      */
     fun stopCoreLoop(): Boolean {
         connectionTestScope.coroutineContext.cancelChildren()
+        // The relay follows the profile core, it stops even when the service reference is already gone.
+        stopChainProxy()
         val service = getService() ?: return false
 
         networkMonitor?.unregister()
