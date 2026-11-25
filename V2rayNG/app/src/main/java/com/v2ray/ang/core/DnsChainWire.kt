@@ -297,6 +297,11 @@ object DnsChainWire {
         var count = 0
             private set
 
+        /** Records one more fragment being sent. */
+        internal fun advance() {
+            count += 1
+        }
+
         /** True while the connection still fragments: [maxSplit] == 0 or the quota is not used up. */
         val active: Boolean
             get() = maxSplit == 0 || count < maxSplit
@@ -345,7 +350,7 @@ object DnsChainWire {
             val length = minOf(frag.nextLength(), data.size - pos)
             val piece = FragmentPiece(data.copyOfRange(pos, pos + length), false)
             pos += length
-            frag.count += 1
+            frag.advance()
             if (pos < data.size && frag.active) {
                 // the flag stands for the pause the Python code draws after this piece
                 piece.markPause()
