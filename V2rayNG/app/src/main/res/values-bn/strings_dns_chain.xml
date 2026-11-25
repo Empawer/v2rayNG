@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">রিলে কনফিগ</string>
     <string name="dns_chain_tab_dns">DNS চেইন</string>
     <string name="dns_chain_title_enabled">DNS চেইন ব্যবহার করুন</string>
-    <string name="dns_chain_summary_enabled">SNI / Hello split সহ DoH। এটি নিজে থেকে চলে এবং কখনও VPN দিয়ে যায় না।</string>
+    <string name="dns_chain_summary_enabled">TCP ফ্র্যাগমেন্টেশন সহ DoH। এটি নিজে থেকে চলে এবং কখনও VPN দিয়ে যায় না।</string>
     <string name="dns_chain_title_settings">DNS চেইন সেটিংস</string>
     <string name="dns_chain_hint">এটি dns_chain.ini ফাইলের লেখা। সম্পাদনা করে সংরক্ষণ চাপুন। ডিফল্ট বোতাম মূল লেখা ফিরিয়ে আনে।</string>
     <string name="dns_chain_action_default">ডিফল্ট</string>

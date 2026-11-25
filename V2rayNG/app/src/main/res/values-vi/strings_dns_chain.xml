@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">Cấu hình relay</string>
     <string name="dns_chain_tab_dns">Chuỗi DNS</string>
     <string name="dns_chain_title_enabled">Dùng chuỗi DNS</string>
-    <string name="dns_chain_summary_enabled">DoH kèm chia SNI / Hello. Chạy độc lập và không bao giờ đi qua VPN.</string>
+    <string name="dns_chain_summary_enabled">DoH kèm phân mảnh TCP. Chạy độc lập và không bao giờ đi qua VPN.</string>
     <string name="dns_chain_title_settings">Cài đặt chuỗi DNS</string>
     <string name="dns_chain_hint">Đây là nội dung tệp dns_chain.ini. Hãy sửa rồi nhấn Lưu. Nút Mặc định khôi phục nội dung gốc.</string>
     <string name="dns_chain_action_default">Mặc định</string>

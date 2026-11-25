@@ -37,76 +37,32 @@ system_dns_timeout = 5
 log_level = INFO
 
 ; ---------------------------------------------------------------
-; SNI split: cuts the first TLS packet (ClientHello) inside the
-; hostname (SNI), so DPI never sees the full name in one packet.
-; The server rebuilds the TCP stream and still sees the real name.
-;   pieces : number of parts the hostname is cut into (2 or more)
-;   delay  : pause between parts
-; ---------------------------------------------------------------
-[sni split]
-Enable = 0
-pieces = 10
-delay = 5 ms
-
-; ---------------------------------------------------------------
-; HELLO SPLIT (comprehensive): cuts the first TLS packet (ClientHello)
-; at many structural points, not only inside the hostname. When this
-; section is enabled it takes priority over [sni split].
+; FRAGMENT: cuts the data sent by the client (starting with the TLS
+; ClientHello) into small TCP pieces, so DPI never sees a full packet
+; in one piece. The server rebuilds the stream as usual.
 ;
-;   preset  : basic | standard | aggressive | paranoid
-;             (used only when 'points' is empty)
-;               basic      = sni
-;               standard   = handshake_header, cipher_suites, extensions,
-;                            sni, ext:alpn
-;               aggressive = record_header, handshake_header, random,
-;                            session_id, cipher_suites_mid, cipher_suites,
-;                            compression, extensions, ext_each, sni,
-;                            sni_labels
-;               paranoid   = aggressive + random:5
-;   points  : your own comma-separated list of cut points. Available:
-;               record_header      after the 5-byte TLS record header
-;               handshake_header   after the 4-byte handshake header
-;               random             after the 32-byte client random
-;               session_id         after the session id
-;               cipher_suites      after the cipher suite list
-;               cipher_suites_mid  in the middle of the cipher suite list
-;               compression        after the compression methods
-;               extensions         where the extension block starts
-;               ext_each           before every extension
-;               ext_end            after the last extension
-;               ext:NAME           before and after one extension. NAME is
-;                                  sni, status_request, groups, ec_formats,
-;                                  sigalgs, alpn, sct, padding, ems,
-;                                  compress_cert, ticket, psk, versions,
-;                                  psk_modes, key_share, reneg, ech
-;                                  or a number such as ext:16
-;               sni_edges          right before and after the hostname
-;               sni                sni_edges + cuts inside the hostname
-;               sni_labels         after every dot: example. | pages. | dev
-;               every:N            every N bytes
-;               random:K           K random cut points
-;               N                  a fixed byte offset (negative = from end)
-;   sni_pieces : parts the hostname is cut into by 'sni' (2 or more)
-;   method  : tcp    = one TLS record sent in several TCP packets
-;             record = the ClientHello is re-wrapped into several TLS
-;                      records, each in its own packet (test it: some
-;                      servers do not accept a fragmented ClientHello)
-;   delay        : pause between pieces
-;   delay_jitter : random extra pause (0 to this value) per piece
-;   first_delay  : pause after the first piece (empty = same as delay)
-;   min_piece    : cuts closer than this many bytes are merged
-;   max_pieces   : max number of pieces (0 = unlimited)
+;   length    : size of each piece in bytes. Accepted forms:
+;                 length = 10          one fixed number
+;                 length = 10-20       a range (random size per piece)
+;                 length = 20, 9, 1    a list: pieces are sent with these
+;                                      sizes in this order. An item may also
+;                                      be a range: 20, 5-9, 1
+;               When the list ends it starts again from the first item,
+;               until the data is finished.
+;   interval  : pause between pieces. Accepted forms:
+;                 interval = 0         no pause at all
+;                 interval = 5 ms      fixed pause
+;                 interval = 5-10 ms   random pause inside the range
+;   max_split : how many pieces are fragmented, per connection.
+;                 max_split = 0        unlimited (all data is fragmented)
+;                 max_split = 10       only the first 10 pieces are
+;                                      fragmented, everything after that
+;                                      passes through untouched
 ; ---------------------------------------------------------------
-[hello split]
+[fragment]
 Enable = 1
-preset = paranoid
-points =
-sni_pieces = 10
-method = tcp
-delay = 5 ms
-delay_jitter = 0 ms
-first_delay =
-min_piece = 1
-max_pieces = 0
+length = 10-20
+interval = 5-10 ms
+max_split = 30
 """
 }

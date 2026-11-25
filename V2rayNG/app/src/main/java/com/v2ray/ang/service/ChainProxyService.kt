@@ -66,8 +66,9 @@ class ChainProxyService : Service() {
         val mode = intent?.getStringExtra(EXTRA_MODE) ?: MODE_RELAY
         LogUtil.i(AppConfig.TAG, "StartCore-ChainProxy: $mode service bound")
 
-        // Both methods keep their sockets out of the VPN tunnel, whatever the VPN settings are.
-        if (!networkHeld) {
+        // The DNS chain uses plain Java sockets, which are bound to the physical network, so they never enter the
+        // VPN tunnel. The relay core is left exactly as it was: it uses its own native sockets.
+        if (mode == MODE_DNS && !networkHeld) {
             DnsChainNetwork.start(this)
             networkHeld = true
         }

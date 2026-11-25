@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">Relay config</string>
     <string name="dns_chain_tab_dns">DNS chain</string>
     <string name="dns_chain_title_enabled">Use DNS chain</string>
-    <string name="dns_chain_summary_enabled">DoH with SNI / Hello split. Runs on its own and is never routed through the VPN.</string>
+    <string name="dns_chain_summary_enabled">DoH with TCP fragmentation. Runs on its own and is never routed through the VPN.</string>
     <string name="dns_chain_title_settings">DNS chain settings</string>
     <string name="dns_chain_hint">This is the text of dns_chain.ini. Edit it and press Save. Default brings back the original text.</string>
     <string name="dns_chain_action_default">Default</string>

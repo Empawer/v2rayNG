@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">إعداد المرحّل</string>
     <string name="dns_chain_tab_dns">سلسلة DNS</string>
     <string name="dns_chain_title_enabled">استخدام سلسلة DNS</string>
-    <string name="dns_chain_summary_enabled">DoH مع تقسيم SNI / Hello. يعمل بشكل مستقل ولا يمر عبر VPN أبدًا.</string>
+    <string name="dns_chain_summary_enabled">DoH مع تقطيع TCP. يعمل بشكل مستقل ولا يمر عبر VPN أبدًا.</string>
     <string name="dns_chain_title_settings">إعدادات سلسلة DNS</string>
     <string name="dns_chain_hint">هذا هو نص ملف dns_chain.ini. عدّله ثم اضغط حفظ. زر الافتراضي يعيد النص الأصلي.</string>
     <string name="dns_chain_action_default">افتراضي</string>

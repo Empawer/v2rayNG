@@ -7,22 +7,9 @@ import java.nio.charset.Charset
 import java.util.Locale
 import java.util.concurrent.ThreadLocalRandom
 
-/** Structure of a TLS ClientHello, every value is an offset into the packet. */
-class DnsChainHelloInfo(
-    val sessionId: Int,
-    val csStart: Int,
-    val cipherSuites: Int,
-    val compression: Int,
-    val extensions: Int,
-    /** (type, start, end) of every extension. */
-    val exts: List<Triple<Int, Int, Int>>,
-    /** (offset, length) of the hostname, or null. */
-    val sni: Pair<Int, Int>?,
-)
-
 /**
- * The byte level parts of the DNS chain proxy: DNS packets, the HTTP answer of a DoH server and the
- * cuts of a TLS ClientHello. It has no Android dependency, so JVM tests can cover it.
+ * The byte level parts of the DNS chain proxy: DNS packets, the HTTP answer of a DoH server and
+ * the TCP fragment plan of the client data. It has no Android dependency, so JVM tests can cover it.
  */
 object DnsChainWire {
 
@@ -291,237 +278,79 @@ object DnsChainWire {
         }
     }
 
-    // ---------------------------------------------------------------- TLS ClientHello
+    // ---------------------------------------------------------------- TCP fragment
 
     fun isTlsClientHello(data: ByteArray): Boolean =
         data.size >= 6 && data[0] == 0x16.toByte() && data[1] == 0x03.toByte() && data[5] == 0x01.toByte()
 
-    /** Big endian number of the bytes data[from, to), with the bounds of a Python slice. */
-    private fun beSlice(data: ByteArray, from: Int, to: Int): Int {
-        var value = 0
-        var i = from
-        val end = minOf(to, data.size)
-        while (i < end) {
-            value = (value shl 8) or u8(data, i)
-            i++
-        }
-        return value
-    }
+    /**
+     * Per-connection fragment state: which piece size is next and how many pieces were sent. This
+     * is the port of the Fragmenter class of the Python proxy.
+     */
+    class Fragmenter(cfg: DnsChainFragment) {
+        private val lengths = cfg.lengths
+        private val interval = cfg.interval
+        private val maxSplit = cfg.maxSplit
+        private var idx = 0
 
-    /** (offset, length) of the hostname inside a TLS ClientHello, or null. */
-    fun findSniSpan(data: ByteArray): Pair<Int, Int>? {
-        try {
-            var pos = 5 + 4 + 2 + 32
-            pos += 1 + u8(data, pos)
-            pos += 2 + beSlice(data, pos, pos + 2)
-            pos += 1 + u8(data, pos)
-            val extEnd = pos + 2 + beSlice(data, pos, pos + 2)
-            pos += 2
-            while (pos + 4 <= extEnd) {
-                val etype = beSlice(data, pos, pos + 2)
-                val elen = beSlice(data, pos + 2, pos + 4)
-                if (etype == 0) {
-                    val nameLen = beSlice(data, pos + 7, pos + 9)
-                    if (nameLen > 0 && pos + 9 + nameLen <= data.size) {
-                        return (pos + 9) to nameLen
-                    }
-                    return null
-                }
-                pos += 4 + elen
-            }
-        } catch (_: IndexOutOfBoundsException) {
-            // a packet that is cut short
-        }
-        return null
-    }
+        /** Pieces already sent as fragments. */
+        var count = 0
+            private set
 
-    /** Offsets of every structural part of a ClientHello, null when it is malformed. */
-    fun parseClientHello(data: ByteArray): DnsChainHelloInfo? {
-        try {
-            if (!isTlsClientHello(data)) return null
-            val n = data.size
-            var pos = 43
-            pos += 1 + u8(data, pos)
-            val sessionId = pos
-            val csLen = beSlice(data, pos, pos + 2)
-            val csStart = pos + 2
-            pos += 2 + csLen
-            val cipherSuites = pos
-            pos += 1 + u8(data, pos)
-            val compression = pos
-            val extTotal = beSlice(data, pos, pos + 2)
-            pos += 2
-            val extensions = pos
-            val extEnd = minOf(pos + extTotal, n)
-            val exts = ArrayList<Triple<Int, Int, Int>>()
-            var sni: Pair<Int, Int>? = null
-            while (pos + 4 <= extEnd) {
-                val etype = beSlice(data, pos, pos + 2)
-                val elen = beSlice(data, pos + 2, pos + 4)
-                exts.add(Triple(etype, pos, minOf(pos + 4 + elen, n)))
-                if (etype == 0 && sni == null) {
-                    val nl = beSlice(data, pos + 7, pos + 9)
-                    if (nl > 0 && pos + 9 + nl <= n) sni = (pos + 9) to nl
-                }
-                pos += 4 + elen
-            }
-            return DnsChainHelloInfo(sessionId, csStart, cipherSuites, compression, extensions, exts, sni)
-        } catch (_: IndexOutOfBoundsException) {
-            return null
+        /** True while the connection still fragments: [maxSplit] == 0 or the quota is not used up. */
+        val active: Boolean
+            get() = maxSplit == 0 || count < maxSplit
+
+        /** The next piece size in bytes; the list of lengths wraps around. */
+        fun nextLength(): Int {
+            val (lo, hi) = lengths[idx % lengths.size]
+            idx += 1
+            // Python random.randint is inclusive on both ends.
+            return if (hi > lo) ThreadLocalRandom.current().nextInt(lo, hi + 1) else lo
+        }
+
+        /** The next pause between pieces in seconds. */
+        fun nextDelay(): Double {
+            val (lo, hi) = interval
+            return if (hi > lo) ThreadLocalRandom.current().nextDouble(lo, hi) else lo
         }
     }
 
-    /** The sorted byte offsets where [points] cut the packet. */
-    fun computeCuts(points: List<String>, info: DnsChainHelloInfo, data: ByteArray, sniPieces: Int): List<Int> {
-        val n = data.size
-        val cuts = HashSet<Int>()
+    /** One piece of the fragment plan: the bytes and whether the proxy pauses after the piece. */
+    class FragmentPiece(val bytes: ByteArray, pauseAfter: Boolean) {
+        var pauseAfter = pauseAfter
+            private set
 
-        fun add(c: Int?) {
-            if (c != null && c > 0 && c < n) cuts.add(c)
+        internal fun markPause() {
+            pauseAfter = true
         }
-
-        val exts = info.exts
-        val sni = info.sni
-        for (t in points) {
-            when {
-                t == "record_header" || t == "header" -> add(5)
-                t == "handshake_header" -> add(9)
-                t == "random" -> add(43)
-                t == "session_id" -> add(info.sessionId)
-                t == "cipher_suites" -> add(info.cipherSuites)
-                t == "compression" -> add(info.compression)
-                t == "extensions" -> add(info.extensions)
-                t == "cipher_suites_mid" -> {
-                    val length = info.cipherSuites - info.csStart
-                    add(info.csStart + Math.floorDiv(length, 4) * 2)
-                }
-                t == "ext_each" -> for (e in exts) add(e.second)
-                t == "ext_end" -> if (exts.isNotEmpty()) add(exts[exts.size - 1].third)
-                t.startsWith("ext:") -> {
-                    val name = t.substring(4)
-                    val want: Long = DnsChainHello.EXT_BY_NAME[name]?.toLong()
-                        ?: DnsChainHello.parseNumber(name)
-                        ?: throw IllegalArgumentException("invalid literal for int(): '$name'")
-                    for (e in exts) {
-                        if (e.first.toLong() == want) {
-                            add(e.second)
-                            add(e.third)
-                        }
-                    }
-                }
-                t == "sni_edges" -> if (sni != null) {
-                    add(sni.first)
-                    add(sni.first + sni.second)
-                }
-                t == "sni" -> if (sni != null) {
-                    val start = sni.first
-                    val ln = sni.second
-                    add(start)
-                    add(start + ln)
-                    val k = minOf(sniPieces, ln)
-                    for (i in 1 until k) {
-                        add(start + (ln * i) / k)
-                    }
-                }
-                t == "sni_labels" -> if (sni != null) {
-                    val start = sni.first
-                    val ln = sni.second
-                    // every dot of the hostname except a last character
-                    for (i in 0 until ln - 1) {
-                        if (data[start + i] == 0x2E.toByte()) add(start + i + 1)
-                    }
-                }
-                t.startsWith("every:") -> {
-                    val step = t.substring(6).trim().toInt()
-                    var c = step
-                    while (c < n) {
-                        add(c)
-                        c += step
-                    }
-                }
-                t.startsWith("random:") -> {
-                    val count = t.substring(7).trim().toInt()
-                    for (i in 0 until count) {
-                        add(ThreadLocalRandom.current().nextInt(1, n))
-                    }
-                }
-                else -> {
-                    val v = DnsChainHello.parseNumber(t)
-                        ?: throw IllegalArgumentException("invalid literal for int(): '$t'")
-                    val c = if (v < 0) n + v else v
-                    if (c > 0 && c < n) add(c.toInt())
-                }
-            }
-        }
-        return cuts.sorted()
     }
 
     /**
-     * Pieces a ClientHello is sent in. Null when the packet cannot be cut: it is not understood or
-     * no cut point is left.
+     * How [data] is sent under the fragment settings: the pieces and the pause flags, in the order
+     * they are written. Once [Fragmenter.maxSplit] pieces were sent, the rest goes out as one piece
+     * without a pause. This is the pure form of the Python send_fragmented; the proxy writes the
+     * pieces and sleeps where the flag says. The fragment state [frag] is changed as the pieces
+     * are planned, exactly as the Python code does while it sends.
      */
-    fun planHelloSplit(data: ByteArray, cfg: DnsChainHelloSplit): List<ByteArray>? {
-        val info = parseClientHello(data) ?: return null
-        val n = data.size
-        val record = cfg.method == "record"
-
-        var pts = ArrayList<Int>()
-        var prev = 0
-        for (c in computeCuts(cfg.points, info, data, cfg.sniPieces)) {
-            if (record && c <= 5) continue // a record needs payload after its header
-            if (c - prev >= cfg.minPiece && n - c >= 1) {
-                pts.add(c)
-                prev = c
+    fun fragmentPlan(data: ByteArray, frag: Fragmenter): List<FragmentPiece> {
+        val pieces = ArrayList<FragmentPiece>()
+        var pos = 0
+        while (pos < data.size) {
+            if (!frag.active) {
+                // the quota is used up: everything that is left goes out untouched
+                pieces.add(FragmentPiece(data.copyOfRange(pos, data.size), false))
+                break
             }
-        }
-        if (cfg.maxPieces > 0 && pts.size + 1 > cfg.maxPieces) {
-            pts = ArrayList(pts.take(cfg.maxPieces - 1))
-        }
-        if (pts.isEmpty()) return null
-
-        val pieces = ArrayList<ByteArray>()
-        prev = 0
-        val ends = ArrayList(pts)
-        ends.add(n)
-        for (c in ends) {
-            if (record) {
-                val lo = maxOf(prev, 5)
-                val body = if (lo >= c) ByteArray(0) else data.copyOfRange(lo, c)
-                val piece = ByteArray(5 + body.size)
-                piece[0] = data[0]
-                piece[1] = data[1]
-                piece[2] = data[2]
-                piece[3] = (body.size shr 8).toByte()
-                piece[4] = (body.size and 0xFF).toByte()
-                System.arraycopy(body, 0, piece, 5, body.size)
-                pieces.add(piece)
-            } else {
-                pieces.add(data.copyOfRange(prev, c))
+            val length = minOf(frag.nextLength(), data.size - pos)
+            val piece = FragmentPiece(data.copyOfRange(pos, pos + length), false)
+            pos += length
+            frag.count += 1
+            if (pos < data.size && frag.active) {
+                // the flag stands for the pause the Python code draws after this piece
+                piece.markPause()
             }
-            prev = c
-        }
-        return pieces
-    }
-
-    /** Pieces of a ClientHello cut inside the hostname. Null when no hostname was found. */
-    fun planSniSplit(data: ByteArray, wantedPieces: Int): List<ByteArray>? {
-        val span = findSniSpan(data) ?: return null
-        val start = span.first
-        val n = span.second
-        val count = minOf(wantedPieces, n)
-        val cuts = HashSet<Int>()
-        for (i in 0 until count) cuts.add(start + (n * i) / count)
-        cuts.add(start + n)
-        val points = cuts.filter { it > 0 && it < data.size }.sorted()
-
-        val pieces = ArrayList<ByteArray>()
-        var prev = 0
-        val ends = ArrayList(points)
-        ends.add(data.size)
-        for (c in ends) {
-            if (c <= prev) continue
-            pieces.add(data.copyOfRange(prev, c))
-            prev = c
+            pieces.add(piece)
         }
         return pieces
     }

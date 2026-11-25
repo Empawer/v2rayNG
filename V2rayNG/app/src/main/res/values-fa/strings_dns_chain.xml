@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">پیکربندی رِله</string>
     <string name="dns_chain_tab_dns">زنجیره DNS</string>
     <string name="dns_chain_title_enabled">استفاده از زنجیره DNS</string>
-    <string name="dns_chain_summary_enabled">DoH همراه با SNI / Hello split. مستقل اجرا می‌شود و هرگز از مسیر VPN عبور نمی‌کند.</string>
+    <string name="dns_chain_summary_enabled">DoH همراه با تکه‌تکه کردن TCP (Fragment). مستقل اجرا می‌شود و هرگز از مسیر VPN عبور نمی‌کند.</string>
     <string name="dns_chain_title_settings">تنظیمات زنجیره DNS</string>
     <string name="dns_chain_hint">این متن فایل dns_chain.ini است. آن را ویرایش و ذخیره کنید. دکمه پیش‌فرض متن اولیه را برمی‌گرداند.</string>
     <string name="dns_chain_action_default">پیش‌فرض</string>

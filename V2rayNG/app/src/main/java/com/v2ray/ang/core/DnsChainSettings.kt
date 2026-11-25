@@ -5,19 +5,17 @@ import java.util.Locale
 /** Raised when the settings text cannot be read. The message is shown to the user as it is. */
 class DnsChainConfigException(message: String) : Exception(message)
 
-/** [sni split] section: the ClientHello is cut inside the hostname. Times are in seconds. */
-data class DnsChainSniSplit(val pieces: Int, val delay: Double)
-
-/** [hello split] section: the ClientHello is cut at many structural points. Times are in seconds. */
-data class DnsChainHelloSplit(
-    val points: List<String>,
-    val sniPieces: Int,
-    val method: String,
-    val delay: Double,
-    val jitter: Double,
-    val firstDelay: Double?,
-    val minPiece: Int,
-    val maxPieces: Int,
+/**
+ * [fragment] section: the data sent by the client is cut into small TCP pieces, so DPI never sees a
+ * full packet in one piece. Sizes are in bytes, times are in seconds.
+ */
+data class DnsChainFragment(
+    /** Piece sizes in bytes, as inclusive (low, high) ranges; the list wraps around. */
+    val lengths: List<Pair<Int, Int>>,
+    /** Pause between pieces in seconds, as an inclusive (low, high) range. */
+    val interval: Pair<Double, Double>,
+    /** How many pieces are fragmented per connection, 0 = unlimited. */
+    val maxSplit: Int,
 )
 
 /** Everything the DNS chain proxy reads from the settings text. */
@@ -33,8 +31,7 @@ data class DnsChainSettings(
     val systemDnsTimeout: Double,
     val logLevel: String,
     val dohServers: List<String>,
-    val sniSplit: DnsChainSniSplit?,
-    val helloSplit: DnsChainHelloSplit?,
+    val fragment: DnsChainFragment?,
     /** Problems that did not stop the proxy: an ignored DoH url, a skipped split section. */
     val warnings: List<String>,
 ) {
@@ -140,82 +137,22 @@ class DnsChainIni private constructor(
     }
 }
 
-/** Presets and cut point checks of the hello split section. */
-object DnsChainHello {
-    val PRESETS: Map<String, String> = mapOf(
-        "basic" to "sni",
-        "standard" to "handshake_header,cipher_suites,extensions,sni,ext:alpn",
-        "aggressive" to (
-            "record_header,handshake_header,random,session_id,cipher_suites_mid," +
-                "cipher_suites,compression,extensions,ext_each,sni,sni_labels"
-            ),
-        "paranoid" to (
-            "record_header,handshake_header,random,session_id,cipher_suites_mid," +
-                "cipher_suites,compression,extensions,ext_each,sni,sni_labels,random:5"
-            ),
-    )
+/**
+ * "10" -> (10, 10); "10-20" -> (10, 20); "5-10 ms" -> (5, 10). The value of [what] names the
+ * setting in error messages. This is the port of the _parse_range function of the Python proxy.
+ *
+ * @throws NumberFormatException when the text is not a number or a low-high range.
+ */
+internal object DnsChainRanges {
+    private val RANGE = Regex("(\\d+(?:\\.\\d+)?)\\s*(?:ms)?\\s*(?:-\\s*(\\d+(?:\\.\\d+)?)\\s*(?:ms)?)?")
 
-    val EXT_BY_NAME: Map<String, Int> = mapOf(
-        "sni" to 0, "status_request" to 5, "groups" to 10, "ec_formats" to 11, "sigalgs" to 13,
-        "alpn" to 16, "sct" to 18, "padding" to 21, "ems" to 23, "compress_cert" to 27,
-        "ticket" to 35, "psk" to 41, "versions" to 43, "psk_modes" to 45, "key_share" to 51,
-        "reneg" to 65281, "ech" to 65037,
-    )
-
-    val SIMPLE_POINTS: Set<String> = setOf(
-        "record_header", "header", "handshake_header", "random", "session_id",
-        "cipher_suites", "cipher_suites_mid", "compression", "extensions",
-        "ext_each", "ext_end", "sni_edges", "sni", "sni_labels",
-    )
-
-    /** Python's int(text, 0): decimal, 0x, 0o and 0b numbers, null when the text is none of them. */
-    fun parseNumber(text: String): Long? {
-        var s = text.trim().replace("_", "")
-        var negative = false
-        if (s.startsWith("+")) {
-            s = s.substring(1)
-        } else if (s.startsWith("-")) {
-            negative = true
-            s = s.substring(1)
-        }
-        if (s.isEmpty()) return null
-        val lower = s.lowercase(Locale.ROOT)
-        val value: Long? = when {
-            lower.startsWith("0x") -> lower.substring(2).toLongOrNull(16)
-            lower.startsWith("0o") -> lower.substring(2).toLongOrNull(8)
-            lower.startsWith("0b") -> lower.substring(2).toLongOrNull(2)
-            lower.all { it in '0'..'9' } -> {
-                // A decimal number may not have leading zeros, except zero itself.
-                if (lower.length > 1 && lower[0] == '0' && lower.any { it != '0' }) null else lower.toLongOrNull()
-            }
-            else -> null
-        }
-        if (value == null) return null
-        return if (negative) -value else value
-    }
-
-    /** @throws IllegalArgumentException when [token] is not a known cut point. */
-    fun validatePoint(token: String) {
-        if (token in SIMPLE_POINTS) return
-        if (token.startsWith("ext:")) {
-            val name = token.substring(4)
-            if (EXT_BY_NAME.containsKey(name)) return
-            requireNotNull(parseNumber(name)) { "invalid literal for int(): '$name'" }
-            return
-        }
-        if (token.startsWith("every:")) {
-            val n = token.substring(6).trim().toIntOrNull()
-                ?: throw IllegalArgumentException("invalid literal for int(): '${token.substring(6)}'")
-            require(n >= 1) { "every:N needs N >= 1" }
-            return
-        }
-        if (token.startsWith("random:")) {
-            val n = token.substring(7).trim().toIntOrNull()
-                ?: throw IllegalArgumentException("invalid literal for int(): '${token.substring(7)}'")
-            require(n >= 0) { "random:K needs K >= 0" }
-            return
-        }
-        requireNotNull(parseNumber(token)) { "invalid literal for int(): '$token'" }
+    fun parse(raw: String, what: String): Pair<Double, Double> {
+        val match = RANGE.matchEntire(raw.trim().lowercase(Locale.ROOT))
+            ?: throw NumberFormatException("invalid $what: '$raw'")
+        val lo = match.groupValues[1].toDouble()
+        val hi = if (match.groupValues[2].isEmpty()) lo else match.groupValues[2].toDouble()
+        if (hi < lo) throw NumberFormatException("$what range must be written low-high: '$raw'")
+        return lo to hi
     }
 }
 
@@ -276,8 +213,7 @@ internal object DnsChainIniLoader {
             systemDnsTimeout = systemDnsTimeout,
             logLevel = logLevel,
             dohServers = loadDohServers(ini, warnings),
-            sniSplit = loadSniSplit(ini, warnings),
-            helloSplit = loadHelloSplit(ini, warnings),
+            fragment = loadFragment(ini, warnings),
             warnings = warnings,
         )
     }
@@ -304,73 +240,41 @@ internal object DnsChainIniLoader {
         return servers
     }
 
-    private fun milliseconds(raw: String): Double {
-        val cleaned = raw.lowercase(Locale.ROOT).replace("ms", "").trim()
-        if (cleaned.isEmpty()) return 0.0
-        val value = cleaned.toDoubleOrNull() ?: throw NumberFormatException("could not convert string to float: '$cleaned'")
-        return maxOf(0.0, value / 1000.0)
-    }
-
-    private fun loadSniSplit(ini: DnsChainIni, warnings: MutableList<String>): DnsChainSniSplit? {
-        val section = "sni split"
+    /**
+     * The [fragment] section. length is a comma separated list of numbers and ranges of bytes, an
+     * item may not be a time; interval is one number or range of milliseconds. This is the port of
+     * the load_fragment function of the Python proxy.
+     */
+    private fun loadFragment(ini: DnsChainIni, warnings: MutableList<String>): DnsChainFragment? {
+        val section = "fragment"
         if (!ini.hasSection(section)) return null
         if (ini.get(section, "Enable", "0").trim() != "1") return null
         return try {
-            val piecesRaw = ini.get(section, "pieces", "3")
-            val pieces = maxOf(
-                2,
-                if (ini.has(section, "pieces")) {
-                    piecesRaw.trim().toIntOrNull()
-                        ?: throw NumberFormatException("invalid literal for int(): '$piecesRaw'")
-                } else {
-                    3
-                },
-            )
-            val delayRaw = ini.get(section, "delay", "0 ms").lowercase(Locale.ROOT).replace("ms", "").trim()
-            val delayValue = delayRaw.toDoubleOrNull()
-                ?: throw NumberFormatException("could not convert string to float: '$delayRaw'")
-            DnsChainSniSplit(pieces, maxOf(0.0, delayValue / 1000.0))
-        } catch (e: NumberFormatException) {
-            warnings.add("Section [$section] skipped, invalid config: ${e.message}")
-            null
-        }
-    }
-
-    private fun loadHelloSplit(ini: DnsChainIni, warnings: MutableList<String>): DnsChainHelloSplit? {
-        val section = "hello split"
-        if (!ini.hasSection(section)) return null
-        if (ini.get(section, "Enable", "0").trim() != "1") return null
-
-        fun int(key: String, fallback: Int): Int {
-            if (!ini.has(section, key)) return fallback
-            val raw = ini.get(section, key, "")
-            return raw.trim().toIntOrNull() ?: throw NumberFormatException("invalid literal for int(): '$raw'")
-        }
-
-        return try {
-            val preset = ini.get(section, "preset", "standard").trim().lowercase(Locale.ROOT)
-            var rawPoints = ini.get(section, "points", "").trim()
-            if (rawPoints.isEmpty()) {
-                rawPoints = DnsChainHello.PRESETS[preset] ?: throw IllegalArgumentException("unknown preset '$preset'")
+            // length: "10" | "10-20" | "20, 9, 1" | "20, 5-9, 1"
+            val items = ini.get(section, "length", "").split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            if (items.isEmpty()) throw NumberFormatException("length is empty")
+            val lengths = items.map { item ->
+                if (item.lowercase(Locale.ROOT).contains("ms")) {
+                    throw NumberFormatException("length is in bytes, not ms: '$item'")
+                }
+                val (lo, hi) = DnsChainRanges.parse(item, "length")
+                if (lo != Math.floor(lo) || hi != Math.floor(hi) || lo < 1) {
+                    throw NumberFormatException("length must be whole numbers >= 1: '$item'")
+                }
+                lo.toInt() to hi.toInt()
             }
-            val points = rawPoints.split(",").map { it.trim().lowercase(Locale.ROOT) }.filter { it.isNotEmpty() }
-            require(points.isNotEmpty()) { "no cut points" }
-            for (p in points) DnsChainHello.validatePoint(p)
 
-            val method = ini.get(section, "method", "tcp").trim().lowercase(Locale.ROOT)
-            require(method == "tcp" || method == "record") { "method must be tcp or record" }
+            // interval: "0" | "5 ms" | "5-10 ms" (milliseconds -> seconds)
+            val rawInterval = ini.get(section, "interval", "0").trim().ifEmpty { "0" }
+            val (loMs, hiMs) = DnsChainRanges.parse(rawInterval, "interval")
+            val interval = (loMs / 1000.0) to (hiMs / 1000.0)
 
-            val firstRaw = ini.get(section, "first_delay", "").trim()
-            DnsChainHelloSplit(
-                points = points,
-                sniPieces = maxOf(2, int("sni_pieces", 3)),
-                method = method,
-                delay = milliseconds(ini.get(section, "delay", "0 ms")),
-                jitter = milliseconds(ini.get(section, "delay_jitter", "0 ms")),
-                firstDelay = if (firstRaw.isNotEmpty()) milliseconds(firstRaw) else null,
-                minPiece = maxOf(1, int("min_piece", 1)),
-                maxPieces = maxOf(0, int("max_pieces", 0)),
-            )
+            val maxSplitRaw = if (ini.has(section, "max_split")) ini.get(section, "max_split", "").trim() else "0"
+            val maxSplit = maxSplitRaw.toIntOrNull()
+                ?: throw NumberFormatException("invalid literal for int(): '$maxSplitRaw'")
+            require(maxSplit >= 0) { "max_split must be 0 (unlimited) or a positive number" }
+
+            DnsChainFragment(lengths, interval, maxSplit)
         } catch (e: IllegalArgumentException) {
             // NumberFormatException is an IllegalArgumentException too.
             warnings.add("Section [$section] skipped, invalid config: ${e.message}")

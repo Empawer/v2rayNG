@@ -1,6 +1,7 @@
 package com.v2ray.ang.core
 
 import android.util.Log
+import com.v2ray.ang.AppConfig
 import java.io.IOException
 import java.util.Locale
 
@@ -36,7 +37,7 @@ class DnsChainRunner {
                     level >= DnsChainProxy.INFO -> Log.INFO
                     else -> Log.DEBUG
                 }
-                Log.println(priority, TAG, message)
+                Log.println(priority, AppConfig.TAG, "DnsChain: $message")
             }
         }
         val created = DnsChainProxy(settings, log) { DnsChainProxy.androidTune(it) }
@@ -52,8 +53,4 @@ class DnsChainRunner {
 
     @Synchronized
     fun isRunning(): Boolean = proxy?.isRunning() == true
-
-    private companion object {
-        const val TAG = "DnsChain"
-    }
 }

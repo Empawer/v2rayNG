@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">Relay konfiqurasiyası</string>
     <string name="dns_chain_tab_dns">DNS zənciri</string>
     <string name="dns_chain_title_enabled">DNS zəncirindən istifadə et</string>
-    <string name="dns_chain_summary_enabled">SNI / Hello split ilə DoH. Müstəqil işləyir və heç vaxt VPN-dən keçmir.</string>
+    <string name="dns_chain_summary_enabled">TCP fraqmentasiyası ilə DoH. Müstəqil işləyir və heç vaxt VPN-dən keçmir.</string>
     <string name="dns_chain_title_settings">DNS zənciri ayarları</string>
     <string name="dns_chain_hint">Bu dns_chain.ini faylının mətnidir. Redaktə edib Saxla düyməsini basın. Susmaya görə düyməsi ilkin mətni qaytarır.</string>
     <string name="dns_chain_action_default">Susmaya görə</string>

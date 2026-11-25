@@ -28,7 +28,6 @@ import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.Future
 import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import javax.net.ssl.SSLException
@@ -43,10 +42,10 @@ fun interface DnsChainLog {
 }
 
 /**
- * SOCKS5 / HTTP CONNECT proxy with SNI / Hello split and DNS over HTTPS.
+ * SOCKS5 / HTTP CONNECT proxy with TCP fragmentation and DNS over HTTPS.
  *
- * This is a port of main.py, the Python proxy, with the same behaviour: the same settings, the same
- * DoH race with cooldowns, the same caches, the same cuts of the ClientHello.
+ * This is a port of main.py, the Python proxy, with the same behaviour: the same settings, the
+ * same DoH race with cooldowns, the same caches, the same fragmentation of the client data.
  *
  * It uses plain JVM sockets and nothing of Android, so it does not touch the VPN: it runs in the
  * chain process of the app, which keeps its sockets away from the tunnel (see [DnsChainNetwork]).
@@ -198,22 +197,21 @@ class DnsChainProxy(
             log.write(PRINT, "[*] DoH: Disabled (system DNS)")
         }
         log.write(PRINT, "[*] Idle timeout: ${if (cfg.idleTimeout == 0) "disabled" else "${cfg.idleTimeout}s"}")
-        val hello = cfg.helloSplit
-        val sni = cfg.sniSplit
-        if (hello != null) {
-            val ms = if (hello.maxPieces == 0) "unlimited" else hello.maxPieces.toString()
+        val fragment = cfg.fragment
+        if (fragment != null) {
+            fun g(v: Double): String = String.format(Locale.ROOT, "%g", v)
+            val lengths = fragment.lengths.joinToString(", ") { (lo, hi) ->
+                if (lo == hi) g(lo.toDouble()) else "${g(lo.toDouble())}-${g(hi.toDouble())}"
+            }
+            val (ilo, ihi) = fragment.interval
+            val interval = if (ilo == ihi) g(ilo * 1000) else "${g(ilo * 1000)}-${g(ihi * 1000)}"
+            val maxSplit = if (fragment.maxSplit == 0) "unlimited" else fragment.maxSplit.toString()
             log.write(
                 PRINT,
-                "[*] Hello split: method=${hello.method} delay=${hello.delay}s jitter=${hello.jitter}s " +
-                    "max_pieces=$ms\n    points=${hello.points.joinToString(",")}",
+                "[*] Fragment: length=$lengths bytes, interval=$interval ms, max_split=$maxSplit",
             )
-            if (sni != null) {
-                log.write(PRINT, "[*] SNI split: standby (used only if Hello split cannot parse a packet)")
-            }
-        } else if (sni != null) {
-            log.write(PRINT, "[*] SNI split: pieces=${sni.pieces} delay=${sni.delay}s")
         } else {
-            log.write(PRINT, "[*] SNI split / Hello split: disabled")
+            log.write(PRINT, "[*] Fragment: disabled")
         }
         log.write(PRINT, "=".repeat(60))
         log.write(PRINT, "Waiting for client connections...")
@@ -636,7 +634,7 @@ class DnsChainProxy(
         return sorted[0].hostAddress ?: throw UnknownHostException(host)
     }
 
-    // ------------------------------------------------------------------ sending the ClientHello
+    // ------------------------------------------------------------------ sending the client data fragmented
 
     private fun sleepSeconds(seconds: Double) {
         if (seconds <= 0) return
@@ -649,33 +647,23 @@ class DnsChainProxy(
         }
     }
 
-    private fun sendPieces(out: OutputStream, pieces: List<ByteArray>, delayAfter: (Int) -> Double) {
-        for ((index, piece) in pieces.withIndex()) {
-            out.write(piece)
+    /**
+     * Sends [data] in the pieces of the fragment plan. The pause comes from the settings: a fixed
+     * value or a random one inside the range. Once max_split pieces were sent, the rest of the
+     * stream passes through untouched. This is the port of the Python send_fragmented.
+     */
+    private fun sendFragmented(out: OutputStream, data: ByteArray, frag: DnsChainWire.Fragmenter) {
+        val plan = DnsChainWire.fragmentPlan(data, frag)
+        for ((index, piece) in plan.withIndex()) {
+            out.write(piece.bytes)
             out.flush()
-            if (index == pieces.size - 1) break
-            sleepSeconds(delayAfter(index))
+            if (index == plan.size - 1) break
+            if (piece.pauseAfter) {
+                val delay = frag.nextDelay()
+                if (delay > 0) sleepSeconds(delay)
+            }
         }
-    }
-
-    /** Sends the ClientHello cut inside the hostname. False if no hostname was found. */
-    private fun sendSplitSni(out: OutputStream, data: ByteArray, cfgSni: DnsChainSniSplit): Boolean {
-        val pieces = DnsChainWire.planSniSplit(data, cfgSni.pieces) ?: return false
-        sendPieces(out, pieces) { cfgSni.delay }
-        return true
-    }
-
-    /** Sends the ClientHello cut at the configured points. False means it does not apply. */
-    private fun sendHelloSplit(out: OutputStream, data: ByteArray, h: DnsChainHelloSplit): Boolean {
-        val pieces = DnsChainWire.planHelloSplit(data, h) ?: return false
-        d("hello split: ${pieces.size} pieces (${h.method})")
-        sendPieces(out, pieces) { index ->
-            var delay = h.delay
-            if (index == 0 && h.firstDelay != null) delay = h.firstDelay
-            if (h.jitter > 0) delay += ThreadLocalRandom.current().nextDouble(0.0, h.jitter)
-            delay
-        }
-        return true
+        d("Fragment: ${plan.size} pieces, sizes=${plan.map { it.bytes.size }}")
     }
 
     // ------------------------------------------------------------------ streaming
@@ -721,6 +709,9 @@ class DnsChainProxy(
 
     /** Copies one direction. True on a clean end of the stream, false on an error or a timeout. */
     private fun forwardStream(input: InputStream, out: OutputStream, inSocket: Socket, outSocket: Socket, isClient: Boolean): Boolean {
+        // The fragment state lives per direction, exactly as the Python Fragmenter is created once
+        // per forward_stream call. Only the data of the client is fragmented.
+        val frag = if (isClient && cfg.fragment != null) DnsChainWire.Fragmenter(cfg.fragment!!) else null
         var packetNum = 0
         var ok = true
         try {
@@ -736,11 +727,13 @@ class DnsChainProxy(
 
                 if (isClient) {
                     packetNum += 1
-                    if (packetNum == 1 && DnsChainWire.isTlsClientHello(data)) {
-                        val hello = cfg.helloSplit
-                        if (hello != null && sendHelloSplit(out, data, hello)) continue
-                        val sni = cfg.sniSplit
-                        if (sni != null && sendSplitSni(out, data, sni)) continue
+                    if (packetNum == 1 && !DnsChainWire.isTlsClientHello(data) && frag != null) {
+                        val head = data.take(6).joinToString(" ") { Integer.toHexString(it.toInt() and 0xFF).padStart(2, '0') }
+                        i("First packet is not a TLS ClientHello (${data.size} bytes, starts with $head): sent as it is")
+                    }
+                    if (frag != null && frag.active) {
+                        sendFragmented(out, data, frag)
+                        continue
                     }
                 }
 

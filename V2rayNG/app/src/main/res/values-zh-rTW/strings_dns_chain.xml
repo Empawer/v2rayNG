@@ -3,7 +3,7 @@
     <string name="dns_chain_tab_relay">中繼設定</string>
     <string name="dns_chain_tab_dns">DNS 鏈</string>
     <string name="dns_chain_title_enabled">使用 DNS 鏈</string>
-    <string name="dns_chain_summary_enabled">帶 SNI / Hello 分片的 DoH。獨立運行，絕不經過 VPN。</string>
+    <string name="dns_chain_summary_enabled">帶 TCP 分片的 DoH。獨立運行，絕不經過 VPN。</string>
     <string name="dns_chain_title_settings">DNS 鏈設定</string>
     <string name="dns_chain_hint">這是 dns_chain.ini 的文字。編輯後點擊儲存。「預設」會還原原始文字。</string>
     <string name="dns_chain_action_default">預設</string>

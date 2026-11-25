@@ -55,7 +55,7 @@ import com.v2ray.ang.extension.toastSuccess
  * The Chain dialog. It has two tabs, one for each chain method, and each tab has its own switch:
  *
  * - Relay config: the chain proxy relay core that runs a custom JSON profile.
- * - DNS chain: a proxy with DoH and SNI / Hello split, set up with the text of its ini file.
+ * - DNS chain: a proxy with DoH and TCP fragmentation, set up with the text of its ini file.
  *
  * Only one method works at a time: turning one switch on turns the other one off. The choice applies
  * when the person confirms, so a running service restarts once. The Save button of the DNS chain tab
