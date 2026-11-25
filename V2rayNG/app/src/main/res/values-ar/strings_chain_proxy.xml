@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_chain_proxy_settings">البروكسي المتسلسل</string>
+    <string name="title_pref_chain_proxy_enabled">البروكسي المتسلسل</string>
+    <string name="summary_pref_chain_proxy_enabled">يشغّل إعداد السلسلة المحدد على نواة منفصلة مع الملف الذي تبدأه. اتصل بمنفذ SOCKS أو HTTP الخاص به عبر ملف بروكسي من إعدادك.</string>
+    <string name="title_chain_relay_dialog">إعداد السلسلة</string>
+    <string name="chain_relay_none">لا شيء</string>
+    <string name="menu_item_chain">سلسلة</string>
+    <string name="toast_chain_proxy_config_invalid">إعداد السلسلة غير محدد أو غير صالح. اختر إعداد JSON مخصصاً يحتوي على وارد واحد وصادر واحد على الأقل</string>
+    <string name="toast_chain_proxy_profile_none">لا توجد إعدادات JSON في التطبيق. أضف إعداد JSON مخصصاً أولاً</string>
+    <string name="toast_chain_proxy_same_profile">لا يمكن أن يكون إعداد التتابع هو نفس الملف الذي يجري الاتصال به</string>
+    <string name="toast_chain_proxy_start_failed">فشل تشغيل البروكسي المتسلسل: %1$s</string>
+</resources>

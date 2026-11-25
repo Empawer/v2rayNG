@@ -44,8 +44,10 @@ import kotlinx.coroutines.launch
 @Composable
 fun MainScreen(
     mainViewModel: MainViewModel,
+    chainRelayViewModel: ChainRelayViewModel,
     onAction: (MainAction) -> Unit,
     onNavigate: (MainDestination) -> Unit,
+    onChainApply: (enabled: Boolean, guid: String) -> Unit,
 ) {
     val uiState by mainViewModel.uiState.collectAsStateWithLifecycle()
     val groups = uiState.groups
@@ -62,6 +64,11 @@ fun MainScreen(
     val scope = rememberCoroutineScope()
     var showSearch by rememberSaveable { mutableStateOf(false) }
     val searchQuery = uiState.searchQuery
+    var showChainDialog by remember { mutableStateOf(false) }
+    val chainRelayGuid by chainRelayViewModel.selectedGuid.collectAsStateWithLifecycle()
+    val chainEnabled by chainRelayViewModel.enabled.collectAsStateWithLifecycle()
+    val dnsChainEnabled by chainRelayViewModel.dnsEnabled.collectAsStateWithLifecycle()
+    val chainRelayOptions by chainRelayViewModel.options.collectAsStateWithLifecycle()
     var showDelAllConfirm by remember { mutableStateOf(false) }
     var showDelDuplicateConfirm by remember { mutableStateOf(false) }
     var showDelInvalidConfirm by remember { mutableStateOf(false) }
@@ -131,6 +138,21 @@ fun MainScreen(
         onConfirmRemove = { guid -> showRemoveConfirm = null; onAction(MainAction.RemoveServer(guid)) }
     )
 
+    if (showChainDialog) {
+        ChainDialog(
+            options = chainRelayOptions,
+            initialEnabled = chainEnabled,
+            initialGuid = chainRelayGuid,
+            onConfirm = { enabled, guid ->
+                showChainDialog = false
+                onChainApply(enabled, guid)
+                // The dialog may also have changed the DNS chain, so the button reads the stored choice again.
+                chainRelayViewModel.syncState()
+            },
+            onDismiss = { showChainDialog = false }
+        )
+    }
+
     if (shareTarget != null) {
         val (guid, profile, more) = shareTarget!!
         ShareMethodDialog(
@@ -172,6 +194,13 @@ fun MainScreen(
                     },
                     onSearchToggle = { show: Boolean -> showSearch = show },
                     onMenuClick = { scope.launch { drawerState.open() } },
+                    chainActive = (chainEnabled && chainRelayGuid.isNotEmpty()) || dnsChainEnabled,
+                    onChainClick = {
+                        scope.launch {
+                            chainRelayViewModel.refreshOptions()
+                            showChainDialog = true
+                        }
+                    },
                     onAction = onAction,
                     onMoreMenuAction = { action ->
                         when (action) {

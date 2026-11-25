@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_chain_proxy_settings">پروکسی زنجیره‌ای</string>
+    <string name="title_pref_chain_proxy_enabled">پروکسی زنجیره‌ای</string>
+    <string name="summary_pref_chain_proxy_enabled">کانفیگ چین انتخاب‌شده روی یک هسته‌ی جداگانه همزمان با پروفایلی که استارت می‌کنید اجرا می‌شود. با یک پروفایل پروکسی خودتان به پورت SOCKS یا HTTP آن وصل شوید.</string>
+    <string name="title_chain_relay_dialog">کانفیگ چین</string>
+    <string name="chain_relay_none">هیچ‌کدام</string>
+    <string name="menu_item_chain">چین</string>
+    <string name="toast_chain_proxy_config_invalid">کانفیگ چین انتخاب نشده یا نامعتبر است. یک کانفیگ JSON سفارشی با حداقل یک inbound و یک outbound انتخاب کنید</string>
+    <string name="toast_chain_proxy_profile_none">هیچ کانفیگ JSON در برنامه وجود ندارد. ابتدا یک کانفیگ JSON سفارشی اضافه کنید</string>
+    <string name="toast_chain_proxy_same_profile">کانفیگ رله نمی‌تواند همان پروفایلی باشد که به آن متصل می‌شوید</string>
+    <string name="toast_chain_proxy_start_failed">راه‌اندازی پروکسی زنجیره‌ای ناموفق بود: %1$s</string>
+</resources>

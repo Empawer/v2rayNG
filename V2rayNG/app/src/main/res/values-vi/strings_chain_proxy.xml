@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_chain_proxy_settings">Proxy chuỗi</string>
+    <string name="title_pref_chain_proxy_enabled">Proxy chuỗi</string>
+    <string name="summary_pref_chain_proxy_enabled">Chạy cấu hình chuỗi đã chọn trên một lõi riêng cùng với hồ sơ bạn khởi động. Kết nối tới cổng SOCKS hoặc HTTP của nó bằng hồ sơ proxy của riêng bạn.</string>
+    <string name="title_chain_relay_dialog">Cấu hình chuỗi</string>
+    <string name="chain_relay_none">Không</string>
+    <string name="menu_item_chain">Chuỗi</string>
+    <string name="toast_chain_proxy_config_invalid">Chưa chọn cấu hình chuỗi hoặc cấu hình không hợp lệ. Hãy chọn cấu hình JSON tùy chỉnh có ít nhất một inbound và một outbound</string>
+    <string name="toast_chain_proxy_profile_none">Ứng dụng chưa có cấu hình JSON nào. Hãy thêm cấu hình JSON tùy chỉnh trước</string>
+    <string name="toast_chain_proxy_same_profile">Cấu hình relay không thể trùng với hồ sơ đang kết nối</string>
+    <string name="toast_chain_proxy_start_failed">Không thể khởi động proxy chuỗi: %1$s</string>
+</resources>

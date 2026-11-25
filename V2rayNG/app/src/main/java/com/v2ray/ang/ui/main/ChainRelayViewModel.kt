@@ -4,6 +4,7 @@ import android.app.Application
 import com.v2ray.ang.AppConfig
 import com.v2ray.ang.R
 import com.v2ray.ang.core.ChainProxyConfig
+import com.v2ray.ang.core.DnsChainStore
 import com.v2ray.ang.enums.EConfigType
 import com.v2ray.ang.handler.MmkvManager
 import com.v2ray.ang.ui.base.BaseViewModel
@@ -34,16 +35,28 @@ class ChainRelayViewModel(application: Application) : BaseViewModel(application)
     /** Id of the profile used as chain config, empty when none is selected. */
     val selectedGuid: StateFlow<String> = _selectedGuid.asStateFlow()
 
+    private val _dnsEnabled = MutableStateFlow(DnsChainStore.isEnabled())
+
+    /** Whether the DNS chain, the other chain method, is on. */
+    val dnsEnabled: StateFlow<Boolean> = _dnsEnabled.asStateFlow()
+
     private val _options = MutableStateFlow<List<ChainRelayOption>>(emptyList())
 
     /** Custom JSON profiles of the app, the only profiles that are a complete core config. */
     val options: StateFlow<List<ChainRelayOption>> = _options.asStateFlow()
 
-    suspend fun refreshOptions() {
-        // The Chain dialog also changes the stored choice from outside this model (the DNS chain tab turns the
-        // relay off), so the state is read again every time the dialog is about to open.
+    /**
+     * Reads the stored choice again. The Chain dialog also changes it from outside this model (the DNS chain
+     * tab turns the relay off), so this runs when the dialog is about to open and after it is closed.
+     */
+    fun syncState() {
         _enabled.value = MmkvManager.decodeSettingsBool(AppConfig.PREF_CHAIN_PROXY_ENABLED, false)
         _selectedGuid.value = MmkvManager.decodeSettingsString(AppConfig.PREF_CHAIN_PROXY_SOURCE_GUID, "").orEmpty()
+        _dnsEnabled.value = DnsChainStore.isEnabled()
+    }
+
+    suspend fun refreshOptions() {
+        syncState()
         _options.value = withContext(Dispatchers.IO) {
             MmkvManager.decodeAllServerList().distinct().mapNotNull { guid ->
                 val profile = MmkvManager.decodeServerConfig(guid) ?: return@mapNotNull null

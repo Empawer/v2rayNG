@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="title_chain_proxy_settings">鏈式代理</string>
+    <string name="title_pref_chain_proxy_enabled">鏈式代理</string>
+    <string name="summary_pref_chain_proxy_enabled">在獨立核心上與您啟動的設定檔一同執行所選的鏈式設定。請用您自己的代理設定檔連線其 SOCKS 或 HTTP 連接埠。</string>
+    <string name="title_chain_relay_dialog">鏈式設定</string>
+    <string name="chain_relay_none">無</string>
+    <string name="menu_item_chain">鏈式</string>
+    <string name="toast_chain_proxy_config_invalid">未選擇鏈式設定或設定無效。請選擇至少包含一個入站和一個出站的自訂 JSON 設定</string>
+    <string name="toast_chain_proxy_profile_none">應用程式中沒有 JSON 設定，請先加入自訂 JSON 設定</string>
+    <string name="toast_chain_proxy_same_profile">中繼設定不能與正在連線的設定相同</string>
+    <string name="toast_chain_proxy_start_failed">鏈式代理啟動失敗：%1$s</string>
+</resources>

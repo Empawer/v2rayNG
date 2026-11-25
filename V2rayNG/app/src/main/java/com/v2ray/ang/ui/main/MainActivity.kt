@@ -65,6 +65,8 @@ abstract class BaseMainActivity : HelperBaseComponentActivity() {
         MainViewModel.Factory(application, MainRepository(application as AngApplication))
     }
 
+    protected val chainRelayViewModel: ChainRelayViewModel by viewModels()
+
     private val requestVpnPermission =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
             if (it.resultCode == RESULT_OK) startV2Ray()
@@ -327,7 +329,16 @@ class MainActivity : BaseMainActivity() {
 
     @Composable
     override fun MainContent(viewModel: MainViewModel, onAction: (MainAction) -> Unit, onNavigate: (MainDestination) -> Unit) {
-        MainScreen(viewModel, onAction, onNavigate)
+        MainScreen(
+            mainViewModel = viewModel,
+            chainRelayViewModel = chainRelayViewModel,
+            onAction = onAction,
+            onNavigate = onNavigate,
+            onChainApply = { enabled, guid ->
+                // A running service restarts so the chain change applies to the current connection.
+                if (chainRelayViewModel.apply(enabled, guid)) LauncherManager.restartService(this)
+            },
+        )
     }
 
     override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
