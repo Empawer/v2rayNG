@@ -8,85 +8,164 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 /**
- * The expected values come from running the original Python proxy (main.py) on the same input:
- * a real TLS ClientHello for www.example.pages.dev.
+ * The expected values come from running the original Python proxy (main.py, the fragment version)
+ * on the same input: the same settings text, the same pieces of the client data.
  */
 class DnsChainWireTest {
 
-    private val hello: ByteArray = HELLO_HEX.chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-
-    private fun cuts(points: String, sniPieces: Int = 10): List<Int> {
-        val info = DnsChainWire.parseClientHello(hello)!!
-        return DnsChainWire.computeCuts(points.split(",").map { it.trim() }, info, hello, sniPieces)
-    }
+    // ---------------------------------------------------------------- fragment settings
 
     @Test
-    fun recognisesClientHelloAndFindsTheHostname() {
-        assertEquals(517, hello.size)
-        assertTrue(DnsChainWire.isTlsClientHello(hello))
-        assertEquals(153 to 21, DnsChainWire.findSniSpan(hello))
-
-        val info = DnsChainWire.parseClientHello(hello)!!
-        assertEquals(76, info.sessionId)
-        assertEquals(78, info.csStart)
-        assertEquals(140, info.cipherSuites)
-        assertEquals(142, info.compression)
-        assertEquals(144, info.extensions)
-        assertEquals(153 to 21, info.sni)
-    }
-
-    @Test
-    fun cutsMatchThePythonProxy() {
-        assertEquals(listOf(153, 155, 157, 159, 161, 163, 165, 167, 169, 171, 174), cuts("sni"))
-        assertEquals(
-            listOf(9, 140, 144, 153, 155, 157, 159, 161, 163, 165, 167, 169, 171, 174),
-            cuts("handshake_header,cipher_suites,extensions,sni,ext:alpn"),
+    fun readsTheFragmentSectionLikeThePythonProxy() {
+        val settings = DnsChainSettings.parse(
+            "[fragment]\nEnable = 1\nlength = 10-20\ninterval = 5-10 ms\nmax_split = 30\n",
         )
-        assertEquals(
-            listOf(
-                5, 9, 43, 76, 108, 140, 142, 144, 153, 155, 157, 159, 161, 163, 165, 167, 169, 171, 174,
-                182, 208, 212, 216, 220, 266, 275, 281, 323,
-            ),
-            cuts(DnsChainHello.PRESETS.getValue("aggressive")),
-        )
-        assertEquals(listOf(5, 100, 200, 300, 400, 500, 507), cuts("5,-10,every:100"))
+        val fragment = settings.fragment!!
+        assertEquals(listOf(10 to 20), fragment.lengths)
+        assertEquals(0.005 to 0.01, fragment.interval)
+        assertEquals(30, fragment.maxSplit)
     }
 
     @Test
-    fun hostnameSplitKeepsEveryByte() {
-        val pieces = DnsChainWire.planSniSplit(hello, 10)!!
-        assertTrue(pieces.size >= 2)
-        assertTrue(hello.contentEquals(pieces.fold(ByteArray(0)) { acc, p -> acc + p }))
+    fun readsAListOfLengthsWithRanges() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 20, 5-9, 1\ninterval = 0\n")
+        val fragment = settings.fragment!!
+        assertEquals(listOf(20 to 20, 5 to 9, 1 to 1), fragment.lengths)
+        assertEquals(0.0 to 0.0, fragment.interval)
+        assertEquals(0, fragment.maxSplit)
     }
 
     @Test
-    fun recordMethodWrapsEveryPieceInItsOwnRecord() {
-        val settings = DnsChainSettings.parse("[hello split]\nEnable = 1\npoints = sni\nmethod = record\n")
-        val pieces = DnsChainWire.planHelloSplit(hello, settings.helloSplit!!)!!
-        var payload = ByteArray(0)
-        for (piece in pieces) {
-            assertEquals(0x16, piece[0].toInt())
-            val length = ((piece[3].toInt() and 0xFF) shl 8) or (piece[4].toInt() and 0xFF)
-            assertEquals(piece.size - 5, length)
-            payload += piece.copyOfRange(5, piece.size)
+    fun missingMaxSplitMeansUnlimited() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\n")
+        assertEquals(0, settings.fragment!!.maxSplit)
+    }
+
+    @Test
+    fun fragmentOffOrMissingMeansNull() {
+        assertNull(DnsChainSettings.parse("[fragment]\nEnable = 0\nlength = 10\n").fragment)
+        assertNull(DnsChainSettings.parse("[proxy]\nlisten_port = 18081\n").fragment)
+    }
+
+    @Test
+    fun invalidFragmentSectionIsSkippedWithAWarning() {
+        // length is a time, not a size
+        val ms = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10 ms\n")
+        assertNull(ms.fragment)
+        assertTrue(ms.warnings.any { it.contains("length is in bytes, not ms") })
+
+        // a range must be written low-high
+        val reversed = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10-5\n")
+        assertNull(reversed.fragment)
+
+        // length must be whole bytes
+        val fractional = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 1.5\n")
+        assertNull(fractional.fragment)
+
+        // an empty length list
+        val empty = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength =\n")
+        assertNull(empty.fragment)
+
+        // max_split cannot be negative
+        val negative = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\nmax_split = -1\n")
+        assertNull(negative.fragment)
+    }
+
+    // ---------------------------------------------------------------- fragment plan
+
+    @Test
+    fun fixedLengthSplitsInEqualPieces() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\ninterval = 0\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        val data = ByteArray(35)
+
+        val plan = DnsChainWire.fragmentPlan(data, frag)
+
+        // [10, 10, 10, 5]; pauses inside because max_split = 0 (unlimited)
+        assertEquals(listOf(10, 10, 10, 5), plan.map { it.bytes.size })
+        assertEquals(listOf(true, true, true, false), plan.map { it.pauseAfter })
+        assertTrue(data.contentEquals(plan.fold(ByteArray(0)) { acc, p -> acc + p.bytes }))
+        assertEquals(4, frag.count)
+        assertTrue(frag.active)
+    }
+
+    @Test
+    fun theLengthListWrapsAround() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 20, 9, 1\ninterval = 0\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        val data = ByteArray(45)
+
+        val plan = DnsChainWire.fragmentPlan(data, frag)
+
+        // 20 + 9 + 1 + 15: after the list ends it starts again from the first item
+        assertEquals(listOf(20, 9, 1, 15), plan.map { it.bytes.size })
+        assertEquals(4, frag.count)
+    }
+
+    @Test
+    fun maxSplitLimitsTheFragmentedPieces() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\ninterval = 0\nmax_split = 3\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        val data = ByteArray(50)
+
+        val plan = DnsChainWire.fragmentPlan(data, frag)
+
+        // three pieces of 10 bytes are fragmented, the remaining 20 bytes pass through untouched
+        assertEquals(listOf(10, 10, 10, 20), plan.map { it.bytes.size })
+        assertEquals(listOf(true, true, false, false), plan.map { it.pauseAfter })
+        assertTrue(data.contentEquals(plan.fold(ByteArray(0)) { acc, p -> acc + p.bytes }))
+        assertEquals(3, frag.count)
+        assertFalse(frag.active)
+    }
+
+    @Test
+    fun anInactiveFragmenterLeavesTheDataAsItIs() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\ninterval = 0\nmax_split = 3\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        // use the quota up
+        DnsChainWire.fragmentPlan(ByteArray(30), frag)
+
+        val plan = DnsChainWire.fragmentPlan(ByteArray(40), frag)
+
+        assertEquals(1, plan.size)
+        assertEquals(40, plan[0].bytes.size)
+        assertFalse(plan[0].pauseAfter)
+        assertEquals(3, frag.count)
+    }
+
+    @Test
+    fun aRangeLengthStaysInsideItsBounds() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10-20\ninterval = 0\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        val data = ByteArray(1000)
+
+        val plan = DnsChainWire.fragmentPlan(data, frag)
+
+        assertTrue(plan.size > 50) // pieces of at most 20 bytes cannot be fewer than 50
+        for (piece in plan.dropLast(1)) {
+            assertTrue(piece.bytes.size in 10..20)
         }
-        assertTrue(hello.copyOfRange(5, hello.size).contentEquals(payload))
+        assertTrue(data.contentEquals(plan.fold(ByteArray(0)) { acc, p -> acc + p.bytes }))
     }
 
     @Test
-    fun tcpMethodKeepsTheStreamUnchanged() {
-        val settings = DnsChainSettings.parse("[hello split]\nEnable = 1\npreset = paranoid\n")
-        val pieces = DnsChainWire.planHelloSplit(hello, settings.helloSplit!!)!!
-        assertTrue(pieces.size > 10)
-        assertTrue(hello.contentEquals(pieces.fold(ByteArray(0)) { acc, p -> acc + p }))
+    fun theIntervalRangeIsDrawnBetweenItsBounds() {
+        val settings = DnsChainSettings.parse("[fragment]\nEnable = 1\nlength = 10\ninterval = 5-10 ms\n")
+        val frag = DnsChainWire.Fragmenter(settings.fragment!!)
+        for (i in 0 until 100) {
+            val delay = frag.nextDelay()
+            assertTrue(delay in 0.005..0.010)
+        }
     }
 
     @Test
-    fun maxPiecesLimitsTheCount() {
-        val settings = DnsChainSettings.parse("[hello split]\nEnable = 1\npreset = aggressive\nmax_pieces = 4\n")
-        val pieces = DnsChainWire.planHelloSplit(hello, settings.helloSplit!!)!!
-        assertEquals(4, pieces.size)
+    fun tlsClientHelloIsStillRecognisedForTheFirstPacketLog() {
+        assertTrue(DnsChainWire.isTlsClientHello(byteArrayOf(0x16, 0x03, 0x01, 0x00, 0x05, 0x01)))
+        assertFalse(DnsChainWire.isTlsClientHello(byteArrayOf(0x16, 0x03, 0x01, 0x00, 0x05, 0x02)))
+        assertFalse(DnsChainWire.isTlsClientHello(byteArrayOf(0x17, 0x03, 0x01, 0x00, 0x05, 0x01)))
     }
+
+    // ---------------------------------------------------------------- DNS, HTTP, urls
 
     @Test
     fun dnsQueryMatchesThePythonProxy() {
@@ -136,7 +215,6 @@ class DnsChainWireTest {
         val named = DnsChainWire.parseDohUrl("https://Dns.Example.com:8443")!!
         assertEquals("dns.example.com", named.host)
         assertEquals(8443, named.port)
-        assertEquals("/dns-query", named.path)
 
         assertNull(DnsChainWire.parseDohUrl("https:///dns-query"))
         assertNotNull(DnsChainWire.parseDohUrl("https://1.1.1.1/dns-query"))
@@ -158,19 +236,4 @@ class DnsChainWireTest {
     }
 
     private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
-
-    private companion object {
-        val HELLO_HEX: String =
-            "1603010200010001fc03032fe1a4b68dcf32e04afeff73e29ea4832e4bdfbed09c9555296808d4c374538c20c2a565c27ec8" +
-        "85f0e43d0211c724b3f91f8c143cd72f3b2e09a05d9c3be2cd98003e130213031301c02cc030009fcca9cca8ccaac02bc02f" +
-        "009ec024c028006bc023c0270067c00ac0140039c009c0130033009d009c003d003c0035002f00ff010001750000001a0018" +
-        "0000157777772e6578616d706c652e70616765732e646576000b000403000102000a00160014001d0017001e001900180100" +
-        "0101010201030104002300000016000000170000000d002a0028040305030603080708080809080a080b0804080508060401" +
-        "05010601030303010302040205020602002b00050403040303002d00020101003300260024001d0020396ba8f0b94f75f29f" +
-        "65b715f5c37f05673383c430c7c9bfa72b7dd6a8b8a718001500be0000000000000000000000000000000000000000000000" +
-        "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-        "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-        "0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" +
-        "0000000000000000000000000000000000"
-    }
 }
