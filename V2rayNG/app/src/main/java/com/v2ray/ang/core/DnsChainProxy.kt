@@ -323,7 +323,7 @@ class DnsChainProxy(
 
     private class Outcome(
         val url: String,
-        val result: Pair<String, Long>?,
+        val result: Pair<List<String>, Long>?,
         val error: Throwable?,
         val rtt: Double,
         val ok: Boolean,
