@@ -111,11 +111,19 @@ object DnsChainNetwork {
                 }
             }
 
+            if (best == null) {
+                // No physical network right now: keep the last binding. Unbinding would send every
+                // new socket through the default network, which is the VPN tunnel while the VPN runs.
+                // Nothing bound yet either: the chain is NOT direct, log it loudly for diagnosis.
+                LogUtil.w(AppConfig.TAG, "$TAG: no physical network, chain is ${bound ?: "NOT bound (traffic may enter the tunnel)"}")
+                return
+            }
             if (best == bound) return
-            // Without a physical network the process is released, so it is never bound to a dead one.
             if (cm.bindProcessToNetwork(best)) {
                 bound = best
-                LogUtil.i(AppConfig.TAG, "$TAG: chain process bound to ${best ?: "default network"}")
+                LogUtil.i(AppConfig.TAG, "$TAG: chain process bound to $best")
+            } else {
+                LogUtil.w(AppConfig.TAG, "$TAG: bindProcessToNetwork FAILED, chain is NOT bound to $best")
             }
         } catch (e: Exception) {
             LogUtil.w(AppConfig.TAG, "$TAG: cannot bind the chain process: ${e.message}")
