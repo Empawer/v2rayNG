@@ -127,10 +127,10 @@ class DnsChainProxy(
     private var serverSocket: ServerSocket? = null
     private val active: MutableSet<Socket> = Collections.synchronizedSet(HashSet<Socket>())
 
-    private val dnsCache = ConcurrentHashMap<String, Pair<String, Double>>()
+    private val dnsCache = ConcurrentHashMap<String, Pair<List<String>, Double>>()
     private val negCache = ConcurrentHashMap<String, Double>()
     private val dohIpCache = ConcurrentHashMap<String, Pair<String, Double>>()
-    private val inflight = ConcurrentHashMap<String, CompletableFuture<String?>>()
+    private val inflight = ConcurrentHashMap<String, CompletableFuture<List<String>?>>()
 
     private class Health {
         var fails = 0
@@ -329,7 +329,7 @@ class DnsChainProxy(
         val ok: Boolean,
     )
 
-    private class RaceResult(val answer: Pair<String, Long>?, val answered: Boolean)
+    private class RaceResult(val answer: Pair<List<String>, Long>?, val answered: Boolean)
 
     /** IP address of a DoH server. The result for a host name is cached for 10 minutes. */
     private fun dohConnectIp(host: String): String {
@@ -379,7 +379,7 @@ class DnsChainProxy(
         throw SSLPeerUnverifiedException("certificate does not match $host")
     }
 
-    private fun dohQuery(attempt: Attempt, domain: String, qtype: Int): Pair<String, Long>? {
+    private fun dohQuery(attempt: Attempt, domain: String, qtype: Int): Pair<List<String>, Long>? {
         val url = attempt.url
         val parsed = DnsChainWire.parseDohUrl(url) ?: throw IllegalArgumentException("invalid DoH url: $url")
         val host = parsed.host
@@ -509,7 +509,7 @@ class DnsChainProxy(
         }
     }
 
-    private fun resolveDohUncached(domain: String): String? {
+    private fun resolveDohUncached(domain: String): List<String>? {
         try {
             DnsChainWire.buildDnsQuery(domain, 1) // an invalid name must not count against the servers
         } catch (_: IllegalArgumentException) {
@@ -519,26 +519,43 @@ class DnsChainProxy(
             val race = raceDoh(domain, qtype)
             val res = race.answer
             if (res != null) {
-                val ip = res.first
+                val ips = res.first
                 val ttl = res.second
-                if (dnsCache.size >= DNS_CACHE_MAX) dnsCache.clear()
-                dnsCache[domain] = ip to (mono() + minOf(maxOf(ttl, 30L), 3600L))
-                return ip
+                pruneCache(dnsCache)
+                dnsCache[domain] = ips to (mono() + minOf(maxOf(ttl, 30L), 3600L))
+                return ips
             }
             if (!race.answered) return null // no server answered, do not waste time on AAAA
         }
         return null
     }
 
-    private fun resolveWithDoh(domain: String): String? {
+    /** Drops the expired entries, then the oldest quarter, so the cache never grows without bound. */
+    private fun <V> pruneCache(cache: ConcurrentHashMap<String, V>) {
+        if (cache.size < DNS_CACHE_MAX) return
+        val now = mono()
+        for ((key, value) in cache.entries) {
+            val expiry = when (value) {
+                is Pair<*, *> -> value.second as? Double
+                else -> value as? Double
+            }
+            if (expiry != null && expiry <= now) cache.remove(key)
+        }
+        if (cache.size >= DNS_CACHE_MAX) {
+            val toRemove = cache.keys.toList().take(Math.max(1, DNS_CACHE_MAX / 4))
+            for (key in toRemove) cache.remove(key)
+        }
+    }
+
+    private fun resolveWithDoh(domain: String): List<String>? {
         if (cfg.dohServers.isEmpty()) return null
         val blockedUntil = negCache[domain]
         if (blockedUntil != null && blockedUntil > mono()) return null
 
         // Requests for one name at the same time share one race.
-        val mine = CompletableFuture<String?>()
+        val mine = CompletableFuture<List<String>?>()
         val existing = inflight.putIfAbsent(domain, mine)
-        val ip: String? = if (existing != null) {
+        val ips: List<String>? = if (existing != null) {
             try {
                 existing.get()
             } catch (_: ExecutionException) {
@@ -557,11 +574,11 @@ class DnsChainProxy(
             }
         }
 
-        if (ip == null) {
-            if (negCache.size >= DNS_CACHE_MAX) negCache.clear()
+        if (ips == null) {
+            pruneCache(negCache)
             negCache[domain] = mono() + DnsChainSettings.NEG_CACHE_TTL
         }
-        return ip
+        return ips
     }
 
     /** Tests every server at the start, so a broken server is skipped from the first request. */
@@ -585,8 +602,8 @@ class DnsChainProxy(
     private fun probe(url: String) {
         val t0 = mono()
         val attempt = Attempt(url)
-        val job = pool.submit(Callable<Pair<String, Long>?> { dohQuery(attempt, cfg.testDomain, 1) })
-        val res: Pair<String, Long>?
+        val job = pool.submit(Callable<Pair<List<String>, Long>?> { dohQuery(attempt, cfg.testDomain, 1) })
+        val res: Pair<List<String>, Long>?
         try {
             res = job.get(Math.round(cfg.dohTimeout * 1e9), TimeUnit.NANOSECONDS)
         } catch (_: TimeoutException) {
@@ -603,21 +620,21 @@ class DnsChainProxy(
         }
         val rtt = mono() - t0
         markOk(url, rtt)
-        val note = if (res == null) " [no A record for ${cfg.testDomain}]" else ""
+        val note = if (res == null || res.first.isEmpty()) " [no A record for ${cfg.testDomain}]" else ""
         i("DoH OK      $url (${Math.round(rtt * 1000)} ms)$note")
     }
 
-    private fun resolveHost(host: String): String {
-        if (DnsChainWire.isIpLiteral(host)) return host
+    private fun resolveHost(host: String): List<String> {
+        if (DnsChainWire.isIpLiteral(host)) return listOf(host)
 
         val cached = dnsCache[host]
         if (cached != null && cached.second > mono()) return cached.first
 
         if (cfg.dohServers.isNotEmpty()) {
-            val ip = resolveWithDoh(host)
-            if (ip != null) {
-                d("DoH resolved $host -> $ip")
-                return ip
+            val ips = resolveWithDoh(host)
+            if (ips != null) {
+                d("DoH resolved $host -> ${ips.joinToString(", ")}")
+                return ips
             }
         }
 
@@ -631,7 +648,9 @@ class DnsChainProxy(
             throw (e.cause ?: e)
         }
         val sorted = all.sortedBy { it !is Inet4Address } // IPv4 first
-        return sorted[0].hostAddress ?: throw UnknownHostException(host)
+        val ips = sorted.mapNotNull { it.hostAddress }.distinct()
+        if (ips.isEmpty()) throw UnknownHostException(host)
+        return ips
     }
 
     // ------------------------------------------------------------------ sending the client data fragmented
@@ -727,10 +746,6 @@ class DnsChainProxy(
 
                 if (isClient) {
                     packetNum += 1
-                    if (packetNum == 1 && !DnsChainWire.isTlsClientHello(data) && frag != null) {
-                        val head = data.take(6).joinToString(" ") { Integer.toHexString(it.toInt() and 0xFF).padStart(2, '0') }
-                        i("First packet is not a TLS ClientHello (${data.size} bytes, starts with $head): sent as it is")
-                    }
                     if (frag != null && frag.active) {
                         sendFragmented(out, data, frag)
                         continue
@@ -953,13 +968,28 @@ class DnsChainProxy(
             val targetHost = req.host
             val targetPort = req.port
 
-            try {
-                val resolvedIp = resolveHost(targetHost)
-                i("[$proto] $clientName -> $targetHost ($resolvedIp):$targetPort")
-                remote.connect(InetSocketAddress(InetAddress.getByName(resolvedIp), targetPort), timeoutMs(cfg.connectTimeout))
+            // Every resolved address is tried in order, the first one that connects wins.
+            val resolvedIps: List<String> = try {
+                resolveHost(targetHost)
             } catch (e: Exception) {
-                i("Connect to $targetHost:$targetPort failed: ${why(e)}")
+                i("DNS resolve for $targetHost failed: ${why(e)}")
                 sendFailure(proto, output, e)
+                return
+            }
+            var lastExc: Exception? = null
+            connect@ for (resolvedIp in resolvedIps) {
+                try {
+                    i("[$proto] $clientName -> $targetHost ($resolvedIp):$targetPort")
+                    remote.connect(InetSocketAddress(InetAddress.getByName(resolvedIp), targetPort), timeoutMs(cfg.connectTimeout))
+                    break@connect
+                } catch (e: Exception) {
+                    lastExc = e
+                    d("Connect to $targetHost ($resolvedIp):$targetPort failed: ${why(e)}")
+                }
+            }
+            if (lastExc != null && !remote.isConnected) {
+                i("Connect to $targetHost:$targetPort failed: ${why(lastExc)}")
+                sendFailure(proto, output, lastExc)
                 return
             }
 

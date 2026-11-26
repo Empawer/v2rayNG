@@ -61,8 +61,8 @@ log_level = INFO
 ; ---------------------------------------------------------------
 [fragment]
 Enable = 1
-length = 10-20
-interval = 5-10 ms
-max_split = 30
+length = 5, 1
+interval = 1 ms
+max_split = 16
 """
 }

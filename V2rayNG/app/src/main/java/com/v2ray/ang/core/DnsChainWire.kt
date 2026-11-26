@@ -56,8 +56,8 @@ object DnsChainWire {
         }
     }
 
-    /** (ip, ttl) of the first A or AAAA record, null when there is none. */
-    fun parseDnsResponse(data: ByteArray, qtype: Int): Pair<String, Long>? {
+    /** All A or AAAA addresses of the answer and the smallest ttl, null when there is none. */
+    fun parseDnsResponse(data: ByteArray, qtype: Int): Pair<List<String>, Long>? {
         try {
             if (data.size < 12 || (u8(data, 3) and 0x0F) != 0) return null
             val qdcount = (u8(data, 4) shl 8) or u8(data, 5)
@@ -66,9 +66,11 @@ object DnsChainWire {
             for (i in 0 until qdcount) {
                 off = skipName(data, off) + 4
             }
+            val ips = ArrayList<String>()
+            var minTtl = 3600L
             for (i in 0 until ancount) {
                 off = skipName(data, off)
-                if (off + 10 > data.size) return null
+                if (off + 10 > data.size) break
                 val rtype = (u8(data, off) shl 8) or u8(data, off + 1)
                 val ttl = (u8(data, off + 4).toLong() shl 24) or (u8(data, off + 5).toLong() shl 16) or
                     (u8(data, off + 6).toLong() shl 8) or u8(data, off + 7).toLong()
@@ -76,15 +78,20 @@ object DnsChainWire {
                 off += 10
                 if (rtype == qtype) {
                     if (qtype == 1 && rdlen == 4 && off + 4 <= data.size) {
-                        return "${u8(data, off)}.${u8(data, off + 1)}.${u8(data, off + 2)}.${u8(data, off + 3)}" to ttl
-                    }
-                    if (qtype == 28 && rdlen == 16 && off + 16 <= data.size) {
+                        ips.add("${u8(data, off)}.${u8(data, off + 1)}.${u8(data, off + 2)}.${u8(data, off + 3)}")
+                        minTtl = minOf(minTtl, ttl)
+                    } else if (qtype == 28 && rdlen == 16 && off + 16 <= data.size) {
                         val raw = data.copyOfRange(off, off + 16)
-                        return (InetAddress.getByAddress(raw).hostAddress ?: return null) to ttl
+                        val address = InetAddress.getByAddress(raw).hostAddress
+                        if (address != null) {
+                            ips.add(address)
+                            minTtl = minOf(minTtl, ttl)
+                        }
                     }
                 }
                 off += rdlen
             }
+            if (ips.isNotEmpty()) return ips to minTtl
         } catch (_: IndexOutOfBoundsException) {
             // a truncated answer
         }
