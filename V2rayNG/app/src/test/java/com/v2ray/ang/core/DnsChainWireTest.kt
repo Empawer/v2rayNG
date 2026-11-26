@@ -185,8 +185,19 @@ class DnsChainWireTest {
             "00008180000100010000000005" + "7061676573" + "03646576" + "0000010001" +
                 "c00c0001000100000078" + "0004" + "68120102"
             ).chunked(2).map { it.toInt(16).toByte() }.toByteArray()
-        assertEquals("104.18.1.2" to 120L, DnsChainWire.parseDnsResponse(answer, 1))
+        assertEquals(listOf("104.18.1.2") to 120L, DnsChainWire.parseDnsResponse(answer, 1))
         assertNull(DnsChainWire.parseDnsResponse(answer, 28))
+    }
+
+    @Test
+    fun readsEveryAddressOfAnAnswerWithTheSmallestTtl() {
+        // two A records: 104.18.1.2 ttl=120, 104.18.1.3 ttl=60
+        val answer = (
+            "00008180000100010000000005" + "7061676573" + "03646576" + "0000010001" +
+                "c00c0001000100000078" + "0004" + "68120102" +
+                "c00c000100010000003c" + "0004" + "68120103"
+            ).chunked(2).map { it.toInt(16).toByte() }.toByteArray()
+        assertEquals(listOf("104.18.1.2", "104.18.1.3") to 60L, DnsChainWire.parseDnsResponse(answer, 1))
     }
 
     @Test
