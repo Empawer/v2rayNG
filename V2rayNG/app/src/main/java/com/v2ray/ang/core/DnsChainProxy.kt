@@ -8,6 +8,7 @@ import java.io.InputStream
 import java.io.InterruptedIOException
 import java.io.OutputStream
 import java.net.Inet4Address
+import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -68,6 +69,12 @@ class DnsChainProxy(
         private const val READ_SIZE = 16384
         private const val MAX_TLS_RECORD = 5 + 16384 + 2048
         private const val DNS_CACHE_MAX = 2048
+
+        /** Happy Eyeballs: the next candidate starts this many seconds after the previous one. */
+        private const val CONNECT_STAGGER = 0.3
+
+        /** Happy Eyeballs: at most this many addresses are tried. */
+        private const val CONNECT_CANDIDATES_MAX = 20
 
         private const val SOCKS_OK = 0x00
         private const val SOCKS_GENERAL_FAILURE = 0x01
@@ -509,25 +516,40 @@ class DnsChainProxy(
         }
     }
 
+    /**
+     * The A and AAAA races run at the same time and the answers are mixed alternating with the
+     * IPv6 addresses first (Happy Eyeballs + prioritizeIPv6, like the Python proxy).
+     */
     private fun resolveDohUncached(domain: String): List<String>? {
         try {
             DnsChainWire.buildDnsQuery(domain, 1) // an invalid name must not count against the servers
         } catch (_: IllegalArgumentException) {
             return null
         }
-        for (qtype in intArrayOf(1, 28)) { // A, then AAAA
-            val race = raceDoh(domain, qtype)
-            val res = race.answer
-            if (res != null) {
-                val ips = res.first
-                val ttl = res.second
-                pruneCache(dnsCache)
-                dnsCache[domain] = ips to (mono() + minOf(maxOf(ttl, 30L), 3600L))
-                return ips
-            }
-            if (!race.answered) return null // no server answered, do not waste time on AAAA
+        val race4 = pool.submit(Callable<RaceResult> { raceDoh(domain, 1) })
+        val race6 = pool.submit(Callable<RaceResult> { raceDoh(domain, 28) })
+        val r4 = try {
+            race4.get()
+        } catch (_: Exception) {
+            RaceResult(null, false)
         }
-        return null
+        val r6 = try {
+            race6.get()
+        } catch (_: Exception) {
+            RaceResult(null, false)
+        }
+        val ips4 = r4.answer?.first ?: emptyList()
+        val ips6 = r6.answer?.first ?: emptyList()
+        val ips = ArrayList<String>(ips4.size + ips6.size)
+        for (i in 0 until maxOf(ips6.size, ips4.size)) {
+            if (i < ips6.size) ips.add(ips6[i])
+            if (i < ips4.size) ips.add(ips4[i])
+        }
+        if (ips.isEmpty()) return null
+        val ttl = minOf(r4.answer?.second ?: 3600L, r6.answer?.second ?: 3600L)
+        pruneCache(dnsCache)
+        dnsCache[domain] = ips to (mono() + minOf(maxOf(ttl, 30L), 3600L))
+        return ips
     }
 
     /** Drops the expired entries, then the oldest quarter, so the cache never grows without bound. */
@@ -647,7 +669,7 @@ class DnsChainProxy(
         } catch (e: ExecutionException) {
             throw (e.cause ?: e)
         }
-        val sorted = all.sortedBy { it !is Inet4Address } // IPv4 first
+        val sorted = all.sortedBy { it !is Inet6Address } // IPv6 first (Happy Eyeballs)
         val ips = sorted.mapNotNull { it.hostAddress }.distinct()
         if (ips.isEmpty()) throw UnknownHostException(host)
         return ips
@@ -683,6 +705,104 @@ class DnsChainProxy(
             }
         }
         d("Fragment: ${plan.size} pieces, sizes=${plan.map { it.bytes.size }}")
+    }
+
+    // ------------------------------------------------------------------ Happy Eyeballs connect
+
+    private class ConnectAttempt(val ip: String, val port: Int) {
+        @Volatile
+        var socket: Socket? = null
+
+        @Volatile
+        var cancelled = false
+
+        fun cancel() {
+            cancelled = true
+            try {
+                socket?.close()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    private class ConnectOutcome(val attempt: ConnectAttempt, val socket: Socket?, val error: Throwable?)
+
+    /**
+     * Tries the resolved addresses with Happy Eyeballs: a new connect attempt starts every
+     * [CONNECT_STAGGER] seconds, the first one that connects wins and the rest are cancelled.
+     * This is the port of the Python happy_eyeballs_connect.
+     */
+    private fun happyEyeballsConnect(ips: List<String>, port: Int): Pair<Socket, String> {
+        val candidates = ips.take(CONNECT_CANDIDATES_MAX)
+        val deadline = System.nanoTime() + Math.round(cfg.connectTimeout * 1e9)
+        val queue = LinkedBlockingQueue<ConnectOutcome>()
+        val attempts = ArrayList<ConnectAttempt>()
+        val futures = ArrayList<Future<*>>()
+        var launched = 0
+        var completed = 0
+
+        fun launchNext() {
+            if (launched >= candidates.size) return
+            val attempt = ConnectAttempt(candidates[launched], port)
+            launched += 1
+            attempts.add(attempt)
+            futures.add(
+                pool.submit(
+                    Runnable {
+                        val socket = Socket()
+                        attempt.socket = socket
+                        try {
+                            if (attempt.cancelled) throw IOException("cancelled")
+                            socket.tcpNoDelay = true
+                            socket.connect(
+                                InetSocketAddress(InetAddress.getByName(attempt.ip), port),
+                                timeoutMs(cfg.connectTimeout),
+                            )
+                            queue.put(ConnectOutcome(attempt, socket, null))
+                        } catch (e: Throwable) {
+                            closeQuietly(socket)
+                            queue.put(ConnectOutcome(attempt, null, e))
+                        }
+                    },
+                ),
+            )
+        }
+
+        launchNext()
+        var lastExc: Throwable? = null
+        var winnerSocket: Socket? = null
+        try {
+            while (true) {
+                val remainingNs = deadline - System.nanoTime()
+                if (remainingNs <= 0) {
+                    throw (lastExc ?: SocketTimeoutException("connect timeout"))
+                }
+                val hasMore = launched < candidates.size
+                val waitSeconds = if (hasMore) minOf(CONNECT_STAGGER, remainingNs / 1e9) else remainingNs / 1e9
+                val outcome = queue.poll(Math.round(waitSeconds * 1e9), TimeUnit.NANOSECONDS)
+                if (outcome == null) {
+                    // Nothing finished within the stagger window: start the next candidate.
+                    if (hasMore) launchNext()
+                    continue
+                }
+                completed += 1
+                val socket = outcome.socket
+                if (socket != null) {
+                    winnerSocket = socket
+                    return socket to outcome.attempt.ip
+                }
+                lastExc = outcome.error
+                d("Connect to ${outcome.attempt.ip}:$port failed: ${why(outcome.error)}")
+                // All pending attempts are done: start the next one at once.
+                if (launched == completed && launched < candidates.size) launchNext()
+            }
+        } finally {
+            // Everything that is not the winner is cancelled and closed.
+            for (a in attempts) {
+                if (a.socket !== winnerSocket) a.cancel()
+            }
+            for (f in futures) f.cancel(true)
+        }
     }
 
     // ------------------------------------------------------------------ streaming
@@ -940,9 +1060,8 @@ class DnsChainProxy(
         val clientName = if (peer != null) "${peer.address?.hostAddress}:${peer.port}" else "unknown"
         d("New connection from $clientName")
 
-        val remote = Socket()
+        var remote: Socket? = null
         active.add(client)
-        active.add(remote)
         try {
             val input = BufferedInputStream(client.getInputStream(), READ_SIZE)
             val output = client.getOutputStream()
@@ -968,7 +1087,7 @@ class DnsChainProxy(
             val targetHost = req.host
             val targetPort = req.port
 
-            // Every resolved address is tried in order, the first one that connects wins.
+            // The addresses are tried with Happy Eyeballs, the first connect wins.
             val resolvedIps: List<String> = try {
                 resolveHost(targetHost)
             } catch (e: Exception) {
@@ -976,42 +1095,36 @@ class DnsChainProxy(
                 sendFailure(proto, output, e)
                 return
             }
-            var lastExc: Exception? = null
-            connect@ for (resolvedIp in resolvedIps) {
-                try {
-                    i("[$proto] $clientName -> $targetHost ($resolvedIp):$targetPort")
-                    remote.connect(InetSocketAddress(InetAddress.getByName(resolvedIp), targetPort), timeoutMs(cfg.connectTimeout))
-                    break@connect
-                } catch (e: Exception) {
-                    lastExc = e
-                    d("Connect to $targetHost ($resolvedIp):$targetPort failed: ${why(e)}")
-                }
-            }
-            if (lastExc != null && !remote.isConnected) {
-                i("Connect to $targetHost:$targetPort failed: ${why(lastExc)}")
-                sendFailure(proto, output, lastExc)
+            val (connected, resolvedIp) = try {
+                happyEyeballsConnect(resolvedIps, targetPort)
+            } catch (e: Exception) {
+                i("Connect to $targetHost:$targetPort failed: ${why(e)}")
+                sendFailure(proto, output, e)
                 return
             }
+            remote = connected
+            i("[$proto] $clientName -> $targetHost ($resolvedIp):$targetPort")
 
             // Only now do we tell the client that it is connected.
             sendSuccess(proto, output)
 
-            tuneSocket(remote)
+            val r = remote ?: return
+            tuneSocket(r)
             tuneSocket(client)
 
-            val remoteInput = remote.getInputStream()
-            val remoteOutput = remote.getOutputStream()
+            val remoteInput = r.getInputStream()
+            val remoteOutput = r.getOutputStream()
 
             val down = pool.submit(
                 Callable<Boolean> {
-                    val ok = forwardStream(remoteInput, output, remote, client, false)
-                    if (!ok) closeBoth(client, remote)
+                    val ok = forwardStream(remoteInput, output, r, client, false)
+                    if (!ok) closeBoth(client, r)
                     ok
                 },
             )
-            val upOk = forwardStream(input, remoteOutput, client, remote, true)
+            val upOk = forwardStream(input, remoteOutput, client, r, true)
             // If one direction ended with an error, the other one is closed too.
-            if (!upOk) closeBoth(client, remote)
+            if (!upOk) closeBoth(client, r)
             try {
                 down.get()
             } catch (_: Exception) {
